@@ -57,7 +57,7 @@ export default function App() {
     setAkinatorState((prev) => ({
       ...prev,
       step: 1,
-      maxSteps: 20,
+      maxSteps: 50,
       isConcluded: false,
       isDefinitive: false,
       differentialRanking: [],
@@ -195,7 +195,7 @@ export default function App() {
 
     setAkinatorState({
       step: 1,
-      maxSteps: 20,
+      maxSteps: 50,
       isConcluded: false,
       isDefinitive: false,
       differentialRanking: [],
@@ -240,7 +240,7 @@ export default function App() {
     setAkinatorState((prev) => ({
       ...prev,
       step: 1,
-      maxSteps: 20,
+      maxSteps: 50,
       isConcluded: false,
       isDefinitive: false,
       differentialRanking: [],

@@ -89,8 +89,8 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
               </div>
               <p className="text-xs text-zinc-500 font-medium">
                 {isConcluded 
-                  ? (isDefinitive ? 'Definitive Diagnostic Threshold Met' : `Differential Spectrum Finalized (${history.length} Turns)`) 
-                  : `Inquiry Turn ${history.length + 1} of ${maxSteps}`}
+                  ? (isDefinitive ? 'Definitive Diagnostic Certainty Met (≥95%)' : `Differential Spectrum Finalized (${history.length} Turns)`) 
+                  : `Inquiry Turn ${history.length + 1} • Goal: ≥95% Diagnostic Certainty`}
               </p>
             </div>
           </div>
@@ -325,7 +325,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b-2 border-zinc-900/10">
                   <div>
                     <span className="text-xs font-black uppercase tracking-widest text-emerald-700 flex items-center gap-1.5 mb-1">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Definitive Primary Diagnosis (≥85% Certainty Met)
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Definitive Primary Diagnosis (≥95% Certainty Met)
                     </span>
                     <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">
                       {finalDiagnosis.diseaseName}
@@ -463,10 +463,10 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                       <AlertCircle className="w-4 h-4 text-amber-600" /> Differential Diagnosis Ranking & Uncertainty Summary
                     </span>
                     <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">
-                      Inquiry Budget Completed (Turn {history.length || maxSteps} of {maxSteps})
+                      Inquiry Completed ({history.length} Turns Evaluated)
                     </h2>
                     <p className="text-xs sm:text-sm text-zinc-600 mt-2 leading-relaxed">
-                      Primary condition confidence reached <strong className="text-zinc-900">{finalDiagnosis.likelihood}%</strong>, which is below the definitive certainty threshold (≥85%). In strict adherence to MBBS diagnostic safety standards, we do not declare a premature single diagnosis and present the ranked differential spectrum below.
+                      Primary condition confidence reached <strong className="text-zinc-900">{finalDiagnosis.likelihood}%</strong>, which is below the definitive certainty threshold (≥95%). In strict adherence to MBBS diagnostic safety standards, all available discriminators were queried without premature closure.
                     </p>
                   </div>
 

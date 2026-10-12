@@ -611,6 +611,318 @@ export const QUESTION_CATALOG: QuestionDefinition[] = [
     },
     triggerKeywords: ['wheeze', 'whistling', 'asthma', 'breathing out', 'sentence'],
   },
+
+  // --- ADDITIONAL TROPICAL & TRAVEL QUESTIONS ---
+  {
+    id: 'q_cerebral_malaria_confusion',
+    text: 'Has the patient experienced any drowsiness, disorientation, persistent confusion, or seizure episodes alongside the fevers?',
+    category: 'Red Flag',
+    rationale: 'Assesses for Cerebral Malaria (microvascular cytoadherence of parasitized RBCs in cerebral capillaries), an acute neurological emergency.',
+    diseaseLikelihoods: {
+      malaria: { lrPos: 6.0, lrNeg: 0.3 },
+      bacterial_meningitis: { lrPos: 4.5, lrNeg: 0.4 },
+      subarachnoid_hemorrhage: { lrPos: 3.0, lrNeg: 0.6 },
+      dengue: { lrPos: 1.5, lrNeg: 0.9 },
+      acute_viral: { lrPos: 0.1, lrNeg: 1.5 },
+    },
+    triggerKeywords: ['confusion', 'drowsy', 'disoriented', 'seizure', 'altered mental'],
+  },
+  {
+    id: 'q_rose_spots_trunk',
+    text: 'Are there faint salmon-pink blanching macules (rose spots) visible across the chest or upper abdomen?',
+    category: 'Physical Exam',
+    rationale: 'Rose spots appear in approximately 30% of Typhoid fever cases during the second week of illness due to bacterial embolization.',
+    diseaseLikelihoods: {
+      typhoid: { lrPos: 7.5, lrNeg: 0.25 },
+      dengue: { lrPos: 0.4, lrNeg: 1.2 },
+      malaria: { lrPos: 0.1, lrNeg: 1.3 },
+      acute_viral: { lrPos: 0.2, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['rose spots', 'salmon spots', 'pink spots', 'macules'],
+  },
+  {
+    id: 'q_tourniquet_hess_test',
+    text: 'Did blood pressure cuff inflation on the arm provoke more than 10-20 tiny petechial spots per square inch (positive Hess / Tourniquet test)?',
+    category: 'Physical Exam',
+    rationale: 'Quantifies capillary fragility and thrombocytopenia in early Dengue Fever before frank spontaneous hemorrhage.',
+    diseaseLikelihoods: {
+      dengue: { lrPos: 6.5, lrNeg: 0.2 },
+      leptospirosis: { lrPos: 2.5, lrNeg: 0.7 },
+      malaria: { lrPos: 0.4, lrNeg: 1.3 },
+      acute_viral: { lrPos: 0.2, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['tourniquet', 'hess test', 'cuff test', 'capillary fragility'],
+  },
+  {
+    id: 'q_severe_pallor_conjunctival',
+    text: 'Is there marked ghostly white paleness of the inner eyelids (lower palpebral conjunctiva), tongue, or palmar skin creases?',
+    category: 'Physical Exam',
+    rationale: 'Severe conjunctival pallor signifies acute profound anemia (hemoglobin < 7 g/dL) from rapid Falciparum erythrocyte destruction.',
+    diseaseLikelihoods: {
+      malaria: { lrPos: 5.0, lrNeg: 0.3 },
+      leptospirosis: { lrPos: 2.0, lrNeg: 0.8 },
+      dengue: { lrPos: 0.3, lrNeg: 1.3 },
+      typhoid: { lrPos: 1.5, lrNeg: 0.9 },
+    },
+    triggerKeywords: ['pallor', 'pale eyelids', 'white tongue', 'severe anemia'],
+  },
+  {
+    id: 'q_oliguria_dark_urine',
+    text: 'Has the daily urine volume markedly decreased (oliguria), or has the patient gone more than 12 hours without producing urine?',
+    category: 'Red Flag',
+    rationale: 'Signals acute tubular necrosis / acute kidney injury from Falciparum microvascular sludging or Leptospirosis Weil disease.',
+    diseaseLikelihoods: {
+      leptospirosis: { lrPos: 5.5, lrNeg: 0.25 },
+      malaria: { lrPos: 4.5, lrNeg: 0.35 },
+      dengue: { lrPos: 2.0, lrNeg: 0.8 },
+      acute_viral: { lrPos: 0.1, lrNeg: 1.5 },
+    },
+    triggerKeywords: ['oliguria', 'no urine', 'kidney failure', 'decreased urine'],
+  },
+
+  // --- ADDITIONAL CARDIOVASCULAR DISCRIMINATORS ---
+  {
+    id: 'q_calf_asymmetry_dvt',
+    text: 'Is one calf noticeably swollen (greater than 3 cm difference), warm, red, or painfully tender to squeeze compared to the other leg?',
+    category: 'Physical Exam',
+    rationale: 'Unilateral calf swelling and tenderness indicates Deep Vein Thrombosis (DVT), the primary embolic source for Pulmonary Embolism.',
+    diseaseLikelihoods: {
+      pulmonary_embolism: { lrPos: 7.0, lrNeg: 0.15 },
+      stemi: { lrPos: 0.2, lrNeg: 1.3 },
+      aortic_dissection: { lrPos: 0.3, lrNeg: 1.2 },
+      pericarditis: { lrPos: 0.1, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['calf swelling', 'one leg', 'dvt', 'swollen leg', 'leg pain'],
+  },
+  {
+    id: 'q_exertional_syncope',
+    text: 'Did the patient experience an episode of blacking out (syncope) or sudden near-fainting during or immediately following the chest discomfort?',
+    category: 'Red Flag',
+    rationale: 'Exertional syncope alerts to severe hemodynamic obstruction: massive pulmonary embolism with acute RV failure or proximal aortic dissection.',
+    diseaseLikelihoods: {
+      pulmonary_embolism: { lrPos: 5.5, lrNeg: 0.3 },
+      aortic_dissection: { lrPos: 5.0, lrNeg: 0.35 },
+      stemi: { lrPos: 2.5, lrNeg: 0.7 },
+      gerd: { lrPos: 0.05, lrNeg: 1.5 },
+      pericarditis: { lrPos: 0.2, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['syncope', 'blackout', 'fainted', 'passed out', 'collapse'],
+  },
+  {
+    id: 'q_orthopnea_pnd',
+    text: 'Does the patient experience severe breathlessness when lying flat that forces them to sleep propped up on three or more pillows (orthopnea)?',
+    category: 'History',
+    rationale: 'Orthopnea reflects elevated pulmonary capillary wedge pressure and left ventricular failure following large myocardial infarction.',
+    diseaseLikelihoods: {
+      stemi: { lrPos: 4.5, lrNeg: 0.4 },
+      pulmonary_embolism: { lrPos: 1.5, lrNeg: 0.9 },
+      pneumonia: { lrPos: 1.8, lrNeg: 0.8 },
+      pericarditis: { lrPos: 1.2, lrNeg: 0.9 },
+      gerd: { lrPos: 1.0, lrNeg: 1.0 },
+    },
+    triggerKeywords: ['orthopnea', 'pillows', 'lying flat', 'paroxysmal nocturnal'],
+  },
+  {
+    id: 'q_diaphoresis_cold_sweat',
+    text: 'Was the chest discomfort accompanied by sudden drenching cold clammy perspiration (diaphoresis) or profuse vomiting?',
+    category: 'Symptom Character',
+    rationale: 'Profound sympathetic discharge causing cold diaphoresis strongly elevates likelihood of acute epicardial coronary occlusion.',
+    diseaseLikelihoods: {
+      stemi: { lrPos: 5.5, lrNeg: 0.2 },
+      aortic_dissection: { lrPos: 4.0, lrNeg: 0.4 },
+      pulmonary_embolism: { lrPos: 3.0, lrNeg: 0.6 },
+      pericarditis: { lrPos: 0.4, lrNeg: 1.3 },
+      gerd: { lrPos: 0.1, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['cold sweat', 'clammy', 'diaphoresis', 'drenching sweat'],
+  },
+  {
+    id: 'q_sublingual_nitroglycerin_relief',
+    text: 'Does the chest tightness reliably vanish within 2 to 5 minutes of resting or taking a sublingual nitroglycerin tablet or spray?',
+    category: 'History',
+    rationale: 'Rapid prompt resolution with nitroglycerin supports reversible coronary ischemia rather than pericarditis, dissection, or PE.',
+    diseaseLikelihoods: {
+      stemi: { lrPos: 2.0, lrNeg: 0.8 },
+      gerd: { lrPos: 2.5, lrNeg: 0.7 },
+      aortic_dissection: { lrPos: 0.05, lrNeg: 1.5 },
+      pulmonary_embolism: { lrPos: 0.1, lrNeg: 1.4 },
+      pericarditis: { lrPos: 0.1, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['nitroglycerin', 'nitro spray', 'sublingual'],
+  },
+  {
+    id: 'q_pericardial_friction_rub',
+    text: 'Has a clinician auscultated a superficial, high-pitched scratching or crunching sound over the left lower sternal border that persists on holding breath?',
+    category: 'Physical Exam',
+    rationale: 'Pericardial friction rub is pathognomonic for Acute Pericarditis, differentiating it from myocardial infarction.',
+    diseaseLikelihoods: {
+      pericarditis: { lrPos: 9.0, lrNeg: 0.1 },
+      stemi: { lrPos: 0.1, lrNeg: 1.4 },
+      pulmonary_embolism: { lrPos: 0.2, lrNeg: 1.3 },
+      aortic_dissection: { lrPos: 0.1, lrNeg: 1.3 },
+      gerd: { lrPos: 0.05, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['friction rub', 'scratching sound', 'auscultation rub'],
+  },
+
+  // --- ADDITIONAL ABDOMINAL & GI DISCRIMINATORS ---
+  {
+    id: 'q_rigid_board_abdomen_perforated',
+    text: 'Is the patient\'s entire abdominal wall rock-hard and board-like (involuntary guarding), with agonizing pain triggered by the slightest vibration or cough?',
+    category: 'Physical Exam',
+    rationale: 'Generalized board-like rigidity signifies diffuse chemical/purulent peritonitis from perforated viscus (e.g. perforated peptic ulcer or appendix).',
+    diseaseLikelihoods: {
+      appendicitis: { lrPos: 4.5, lrNeg: 0.4 },
+      pancreatitis: { lrPos: 3.0, lrNeg: 0.6 },
+      cholecystitis: { lrPos: 1.5, lrNeg: 0.9 },
+    },
+    triggerKeywords: ['board like', 'rigid abdomen', 'peritonitis', 'rebound'],
+  },
+  {
+    id: 'q_rovsing_rebound_tenderness',
+    text: 'Does applying firm pressure to the left lower side of the abdomen cause sharp pain to shoot across into the right lower side (Rovsing sign)?',
+    category: 'Physical Exam',
+    rationale: 'Rovsing sign pushes colon gas backwards toward the cecum, stretching the inflamed appendix in Acute Appendicitis.',
+    diseaseLikelihoods: {
+      appendicitis: { lrPos: 7.0, lrNeg: 0.15 },
+      cholecystitis: { lrPos: 0.15, lrNeg: 1.3 },
+      pancreatitis: { lrPos: 0.2, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['rovsing', 'left to right', 'rebound tenderness'],
+  },
+  {
+    id: 'q_obstipation_bilious_vomiting',
+    text: 'Has the patient completely stopped passing gas or stool (obstipation) alongside progressive abdominal bloating and vomiting green/yellow bile?',
+    category: 'Symptom Character',
+    rationale: 'Obstipation, distension, and bilious vomiting form the classical diagnostic tetrad of mechanical Small Bowel Obstruction.',
+    diseaseLikelihoods: {
+      appendicitis: { lrPos: 1.8, lrNeg: 0.8 },
+      pancreatitis: { lrPos: 2.2, lrNeg: 0.7 },
+      cholecystitis: { lrPos: 0.8, lrNeg: 1.1 },
+    },
+    triggerKeywords: ['obstipation', 'no gas', 'no stool', 'bilious vomiting', 'bowel obstruction'],
+  },
+  {
+    id: 'q_pale_stool_dark_urine_biliary',
+    text: 'Has the patient noticed pale putty/clay-colored stools alongside tea-colored dark urine and generalized skin itching (pruritus)?',
+    category: 'Symptom Character',
+    rationale: 'Obstructive post-hepatic cholestasis (choledocholithiasis or ascending cholangitis) blocks bile from entering the duodenum.',
+    diseaseLikelihoods: {
+      cholecystitis: { lrPos: 6.5, lrNeg: 0.2 },
+      pancreatitis: { lrPos: 3.5, lrNeg: 0.5 },
+      appendicitis: { lrPos: 0.1, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['clay stool', 'pale stool', 'itching', 'pruritus', 'biliary'],
+  },
+
+  // --- ADDITIONAL NEUROLOGICAL DISCRIMINATORS ---
+  {
+    id: 'q_kernig_brudzinski_signs',
+    text: 'Does lifting or flexing the patient\'s neck cause their hips and knees to involuntarily bend upwards (Brudzinski sign), or does straightening the knee at 90 deg hip flexion produce severe resistance (Kernig sign)?',
+    category: 'Physical Exam',
+    rationale: 'Positive Kernig and Brudzinski signs have high specificity (>95%) for acute leptomeningeal inflammation.',
+    diseaseLikelihoods: {
+      bacterial_meningitis: { lrPos: 7.5, lrNeg: 0.15 },
+      subarachnoid_hemorrhage: { lrPos: 3.0, lrNeg: 0.5 },
+      malaria: { lrPos: 0.3, lrNeg: 1.2 },
+    },
+    triggerKeywords: ['kernig', 'brudzinski', 'meningeal signs', 'knee reflex'],
+  },
+  {
+    id: 'q_facial_arm_speech_stroke',
+    text: 'Is there sudden unilateral facial drooping, downward arm drift on arm extension, or slurred garbled speech (FAST stroke criteria)?',
+    category: 'Physical Exam',
+    rationale: 'FAST criteria identifies acute focal ischemic cerebral infarction requiring immediate thrombolytic / thrombectomy evaluation.',
+    diseaseLikelihoods: {
+      bacterial_meningitis: { lrPos: 1.8, lrNeg: 0.8 },
+      subarachnoid_hemorrhage: { lrPos: 3.2, lrNeg: 0.6 },
+    },
+    triggerKeywords: ['facial droop', 'arm drift', 'slurred speech', 'stroke', 'weakness side'],
+  },
+  {
+    id: 'q_jaw_claudication_temporal_arteritis',
+    text: 'Does the patient experience cramping pain in the jaw muscles while chewing food, alongside severe tender swelling of the scalp temples?',
+    category: 'History',
+    rationale: 'Jaw claudication is the single highest-yield diagnostic indicator for Giant Cell (Temporal) Arteritis, a medical emergency risking irreversible blindness.',
+    diseaseLikelihoods: {
+      bacterial_meningitis: { lrPos: 0.2, lrNeg: 1.3 },
+      subarachnoid_hemorrhage: { lrPos: 0.3, lrNeg: 1.2 },
+    },
+    triggerKeywords: ['jaw claudication', 'chewing', 'temple', 'temporal artery', 'scalp tenderness'],
+  },
+  {
+    id: 'q_dilated_unresponsive_pupil_third_nerve',
+    text: 'Has one pupil become noticeably dilated, fixed, or unreactive to light with a drooping upper eyelid (ptosis) and down-and-out eye deviation?',
+    category: 'Physical Exam',
+    rationale: 'Pupil-involving Third Cranial Nerve palsy signifies compression from an expanding Posterior Communicating Artery (PCOM) aneurysm at high risk of fatal rupture.',
+    diseaseLikelihoods: {
+      subarachnoid_hemorrhage: { lrPos: 8.5, lrNeg: 0.1 },
+      bacterial_meningitis: { lrPos: 1.5, lrNeg: 0.9 },
+    },
+    triggerKeywords: ['pupil', 'blown pupil', 'dilated pupil', 'ptosis', 'drooping eyelid'],
+  },
+
+  // --- ADDITIONAL PULMONARY & RESPIRATORY DISCRIMINATORS ---
+  {
+    id: 'q_silent_chest_fatigue',
+    text: 'Has audible wheezing suddenly stopped or become quiet despite the patient struggling violently to breathe with severe exhaustion (silent chest)?',
+    category: 'Red Flag',
+    rationale: 'A "silent chest" in acute status asthmaticus indicates complete absence of airflow and impending lethal asphyxial arrest.',
+    diseaseLikelihoods: {
+      asthma_exacerbation: { lrPos: 8.0, lrNeg: 0.1 },
+      pneumonia: { lrPos: 0.5, lrNeg: 1.2 },
+      pulmonary_embolism: { lrPos: 0.8, lrNeg: 1.1 },
+    },
+    triggerKeywords: ['silent chest', 'stopped wheezing', 'exhaustion breathing', 'asphyxia'],
+  },
+  {
+    id: 'q_hyperresonance_unilateral_pneumothorax',
+    text: 'Did sudden sharp chest pain develop with hollow drum-like tapping sounds (hyperresonance) and absent breath sounds on one side of the chest?',
+    category: 'Physical Exam',
+    rationale: 'Unilateral hyperresonance with absent vesicular breath sounds indicates Spontaneous Pneumothorax.',
+    diseaseLikelihoods: {
+      pulmonary_embolism: { lrPos: 1.5, lrNeg: 0.8 },
+      asthma_exacerbation: { lrPos: 1.2, lrNeg: 0.9 },
+      pneumonia: { lrPos: 0.2, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['hyperresonance', 'pneumothorax', 'drum like', 'collapsed lung'],
+  },
+  {
+    id: 'q_chronic_barrel_chest_pursed_copd',
+    text: 'Does the patient have a chronic smoking history with a rounded barrel-shaped chest and breathing out through pursed lips with prolonged exhalation?',
+    category: 'History',
+    rationale: 'Prolonged expiratory phase, pursed-lip breathing, and barrel chest signify severe chronic air-trapping in COPD.',
+    diseaseLikelihoods: {
+      asthma_exacerbation: { lrPos: 3.5, lrNeg: 0.5 },
+      pneumonia: { lrPos: 2.0, lrNeg: 0.7 },
+      pulmonary_embolism: { lrPos: 1.2, lrNeg: 0.9 },
+    },
+    triggerKeywords: ['barrel chest', 'copd', 'pursed lip', 'chronic smoker'],
+  },
+  {
+    id: 'q_hemoptysis_blood_cough',
+    text: 'Has the patient coughed up bright red frank blood or noticeable blood-streaked sputum?',
+    category: 'Red Flag',
+    rationale: 'Hemoptysis in acute pleuritic dyspnea alerts to Pulmonary Infarction from Pulmonary Embolism or necrotizing bacterial pneumonia.',
+    diseaseLikelihoods: {
+      pulmonary_embolism: { lrPos: 6.0, lrNeg: 0.3 },
+      pneumonia: { lrPos: 4.5, lrNeg: 0.4 },
+      asthma_exacerbation: { lrPos: 0.1, lrNeg: 1.4 },
+    },
+    triggerKeywords: ['hemoptysis', 'coughing blood', 'blood in spit', 'blood sputum'],
+  },
+  {
+    id: 'q_stridor_inability_swallow_epiglottitis',
+    text: 'Is there a harsh high-pitched crowing noise on breathing IN (stridor) with inability to swallow saliva leading to drooling and forward tripod leaning?',
+    category: 'Red Flag',
+    rationale: 'Inspiratory stridor and drooling signal acute supraglottic airway obstruction (Acute Epiglottitis / Laryngospasm), a critical resuscitation emergency.',
+    diseaseLikelihoods: {
+      asthma_exacerbation: { lrPos: 0.3, lrNeg: 1.3 },
+      pneumonia: { lrPos: 0.2, lrNeg: 1.3 },
+      pulmonary_embolism: { lrPos: 0.1, lrNeg: 1.3 },
+    },
+    triggerKeywords: ['stridor', 'crowing', 'drooling', 'epiglottitis', 'airway blocked'],
+  },
 ];
 
 // ===========================================================================
@@ -856,64 +1168,61 @@ export function computeAkinatorInferenceStep(
     }
   }
 
-  // 5. Stopping Rules & Budget Enforcement
-  // Strict rule: Conclude early ONLY if topConfidence >= 85% AND turn >= 10, OR turn == 20
-  const hasReachedHighConfidence = topConfidence >= 85 && turn >= 10;
-  const hasExhaustedBudget = turn >= 20;
-  const isConcluded = hasReachedHighConfidence || hasExhaustedBudget;
-  const isDefinitive = topConfidence >= 85;
-
-  // 6. Select the NEXT Discriminator Question
+  // 5. Available Question Extraction & Dynamic Discriminator Selection
   // Compute discriminatory power between candidate #1 and candidate #2:
+  const availableQuestions = QUESTION_CATALOG.filter(q => {
+    if (answeredQuestionIds.has(q.id)) return false;
+    // Deduplicate against intake text
+    if (q.triggerKeywords && q.triggerKeywords.some(kw => initialText.includes(kw))) {
+      return false;
+    }
+    return true;
+  });
+
+  // Strict stopping criteria as specified:
+  // Do NOT cap at 20 questions! The engine must NOT stop asking questions until topConfidence >= 95%
+  // (or until all available discriminators in the catalog are exhausted).
+  const hasReachedCertainty = topConfidence >= 95;
+  const hasExhaustedQuestions = availableQuestions.length === 0;
+  const isConcluded = hasReachedCertainty || hasExhaustedQuestions;
+  const isDefinitive = topConfidence >= 95;
+
   let nextQuestion: AkinatorQuestion | undefined = undefined;
 
-  if (!isConcluded) {
-    // Filter available questions (not already asked and not already explicitly stated in intake text)
-    const availableQuestions = QUESTION_CATALOG.filter(q => {
-      if (answeredQuestionIds.has(q.id)) return false;
-      // Deduplicate against intake text
-      if (q.triggerKeywords && q.triggerKeywords.some(kw => initialText.includes(kw))) {
-        // If the user already wrote this symptom in the intake box, don't ask it as a blind question!
-        return false;
+  if (!isConcluded && availableQuestions.length > 0) {
+    // Find question that maximizes discriminatory divergence between top two candidates
+    let bestQ = availableQuestions[0];
+    let bestScore = -1;
+
+    const topId = topCandidate.id;
+    const secId = secondCandidate?.id || candidateIds[1] || topId;
+
+    for (const q of availableQuestions) {
+      const lr1 = q.diseaseLikelihoods[topId]?.lrPos ?? 1.0;
+      const lr2 = q.diseaseLikelihoods[secId]?.lrPos ?? 1.0;
+      // Discrimination gap: how differently this question affects condition 1 vs condition 2
+      const divergence = Math.abs(Math.log(Math.max(0.1, lr1)) - Math.log(Math.max(0.1, lr2)));
+      
+      // Also bonus questions that specifically target the top candidate
+      const relevance = Math.max(lr1, 1 / Math.max(0.1, lr1));
+      const score = divergence * 2.0 + relevance;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestQ = q;
       }
-      return true;
-    });
-
-    if (availableQuestions.length > 0) {
-      // Find question that maximizes discriminatory divergence between top two candidates
-      let bestQ = availableQuestions[0];
-      let bestScore = -1;
-
-      const topId = topCandidate.id;
-      const secId = secondCandidate?.id || candidateIds[1] || topId;
-
-      for (const q of availableQuestions) {
-        const lr1 = q.diseaseLikelihoods[topId]?.lrPos ?? 1.0;
-        const lr2 = q.diseaseLikelihoods[secId]?.lrPos ?? 1.0;
-        // Discrimination gap: how differently this question affects condition 1 vs condition 2
-        const divergence = Math.abs(Math.log(Math.max(0.1, lr1)) - Math.log(Math.max(0.1, lr2)));
-        
-        // Also bonus questions that specifically target the top candidate
-        const relevance = Math.max(lr1, 1 / Math.max(0.1, lr1));
-        const score = divergence * 2.0 + relevance;
-
-        if (score > bestScore) {
-          bestScore = score;
-          bestQ = q;
-        }
-      }
-
-      nextQuestion = {
-        questionId: bestQ.id,
-        questionText: bestQ.text,
-        category: bestQ.category,
-        clinicalRationale: bestQ.rationale,
-        possibleAnswers: LIKERT_ANSWERS,
-      };
     }
+
+    nextQuestion = {
+      questionId: bestQ.id,
+      questionText: bestQ.text,
+      category: bestQ.category,
+      clinicalRationale: bestQ.rationale,
+      possibleAnswers: LIKERT_ANSWERS,
+    };
   }
 
-  // 7. Format Differential Ranking & Diagnostic Assessment
+  // 6. Format Differential Ranking & Diagnostic Assessment
   const differentialRanking: DifferentialItem[] = sortedCandidates.map((c, idx) => ({
     diseaseName: c.profile.name,
     icd10Code: c.profile.icd10,
@@ -941,22 +1250,22 @@ export function computeAkinatorInferenceStep(
       'Maintain continuous vital sign monitoring and adhere to allergy contraindication alerts.',
     ],
     differentialSummary: isDefinitive
-      ? `Diagnostic threshold exceeded (>=85% confidence). Primary identified condition is ${topCandidate.profile.name}. Immediate targeted confirmatory testing and clinical management indicated.`
-      : `Inquiry completed with 20 turns. Primary candidate is ${topCandidate.profile.name} (${topConfidence}%), with close differentials ${sortedCandidates.slice(1, 3).map(c => `${c.profile.name} (${c.prob}%)`).join(', ')}. Comprehensive differential workup recommended.`,
+      ? `Definitive diagnostic certainty threshold reached (>=95% confidence). Primary identified condition is ${topCandidate.profile.name}. Immediate targeted confirmatory testing and clinical management indicated.`
+      : `Inquiry completed after ${turn} turns. Primary candidate is ${topCandidate.profile.name} (${topConfidence}%), with close differentials ${sortedCandidates.slice(1, 3).map(c => `${c.profile.name} (${c.prob}%)`).join(', ')}. Comprehensive differential workup recommended.`,
   };
 
-  // 8. Generate Dr. Akinator Thought Bubble
+  // 7. Generate Dr. Akinator Thought Bubble
   let akinatorThought = '';
   if (isConcluded) {
     if (isDefinitive) {
-      akinatorThought = `Definitive diagnostic threshold reached (${topConfidence}% confidence at Turn ${turn})! Identified ${topCandidate.profile.name}. Findings strongly corroborate cardinal pathophysiological criteria.`;
+      akinatorThought = `Definitive diagnostic threshold met (${topConfidence}% confidence >= 95% at Turn ${turn})! Identified ${topCandidate.profile.name}. Findings decisively confirm cardinal pathophysiological criteria.`;
     } else {
-      akinatorThought = `20-question inquiry budget reached (Top confidence: ${topConfidence}%). In strict adherence to MBBS diagnostic safety, presenting ranked differential spectrum across candidate conditions without premature closure.`;
+      akinatorThought = `All ${turn} available clinical discriminators exhausted. Highest posterior candidate reached ${topConfidence}%. In strict adherence to MBBS diagnostic safety, presenting ranked differential spectrum without premature closure.`;
     }
   } else if (turn === 0) {
-    akinatorThought = `Step 1/20: Extracted presenting complaints and travel priors. Formulating screening question to differentiate candidate cluster (${sortedCandidates.map(c => c.profile.name.split(' ')[0]).join(' vs ')})...`;
+    akinatorThought = `Turn 1: Clinical priors initialized. Formulating discriminatory question to differentiate candidate cluster (${sortedCandidates.map(c => c.profile.name.split(' ')[0]).join(' vs ')}). Active inquiry will continue until >=95% certainty is attained.`;
   } else {
-    akinatorThought = `Turn ${turn}/20: Bayesian update completed. Leading candidate is ${topCandidate.profile.name} (${topConfidence}%). Testing discriminator question against ${secondCandidate?.profile.name || 'alternative differentials'}...`;
+    akinatorThought = `Turn ${turn}: Bayesian update applied. Leading candidate: ${topCandidate.profile.name} (${topConfidence}%). Active inquiry continuing until >=95% certainty threshold is met...`;
   }
 
   const currentCandidates = sortedCandidates.slice(0, 5).map(c => ({
@@ -968,7 +1277,7 @@ export function computeAkinatorInferenceStep(
 
   return {
     step: currentStep,
-    maxSteps: 20,
+    maxSteps: Math.max(turn + 1, 20),
     isConcluded,
     isDefinitive,
     differentialRanking,
