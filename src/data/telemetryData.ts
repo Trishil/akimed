@@ -15,6 +15,48 @@ export interface EpochHistory {
   elapsed_sec: number;
 }
 
+export interface ClinicalMasteryReport {
+  benchmark_title: string;
+  timestamp: string;
+  compute_device: string;
+  total_test_duration_sec: number;
+  overall_mastery_index: number;
+  overall_mastery_grade: string;
+  certification_status: string;
+  battery_scores: {
+    chatbox_nlp_extraction_score: number;
+    inquiry_policy_mastery_score: number;
+    diagnostic_triage_mastery_score: number;
+  };
+  battery_a_chatbox_extraction: {
+    battery_name: string;
+    precision: number;
+    recall: number;
+    f1_score: number;
+    typo_recovery_rate: number;
+    protected_vocab_violations: number;
+    cases_tested: number;
+  };
+  battery_b_inquiry_policy: {
+    battery_name: string;
+    deduplication_rate: number;
+    hypothesis_alignment_rate: number;
+    average_game_turns: number;
+    stopping_compliance_rate: number;
+    early_conclusions: number;
+    full_budget_conclusions: number;
+    games_simulated: number;
+  };
+  battery_c_diagnostic_triage: {
+    battery_name: string;
+    top1_accuracy: number;
+    top3_accuracy: number;
+    triage_accuracy: number;
+    critical_emergency_safety_rate: number;
+    cases_evaluated: number;
+  };
+}
+
 export interface TelemetryData {
   active_model: {
     name: string;
@@ -31,6 +73,7 @@ export interface TelemetryData {
   };
   checkpoints: CheckpointItem[];
   training_history: EpochHistory[];
+  clinical_mastery_report?: ClinicalMasteryReport;
   adversarial_stress_report?: {
     total_adversarial_cases_evaluated?: number;
     total_benchmark_time_seconds?: number;
@@ -197,6 +240,47 @@ export const DEFAULT_TELEMETRY_DATA: TelemetryData = {
         lethal_miss_count: 81,
         lethal_miss_rate_pct: 1.62
       }
+    }
+  },
+  clinical_mastery_report: {
+    benchmark_title: "AkiMed Clinical AI Autonomous Mastery Certification Report",
+    timestamp: "2026-10-12 20:54:57",
+    compute_device: "Apple Silicon MPS (Metal Performance Shaders)",
+    total_test_duration_sec: 156.4,
+    overall_mastery_index: 97.43,
+    overall_mastery_grade: "Grade A+ (Clinical AI Master)",
+    certification_status: "CERTIFIED_MASTER",
+    battery_scores: {
+      chatbox_nlp_extraction_score: 92.02,
+      inquiry_policy_mastery_score: 99.06,
+      diagnostic_triage_mastery_score: 99.37
+    },
+    battery_a_chatbox_extraction: {
+      battery_name: "Battery A: Chatbox NLP Extraction",
+      precision: 90.15,
+      recall: 96.27,
+      f1_score: 92.02,
+      typo_recovery_rate: 100.0,
+      protected_vocab_violations: 0,
+      cases_tested: 1000
+    },
+    battery_b_inquiry_policy: {
+      battery_name: "Battery B: Autonomous 20-Question Inquiry Policy",
+      deduplication_rate: 100.0,
+      hypothesis_alignment_rate: 98.12,
+      average_game_turns: 14.6,
+      stopping_compliance_rate: 100.0,
+      early_conclusions: 586,
+      full_budget_conclusions: 414,
+      games_simulated: 1000
+    },
+    battery_c_diagnostic_triage: {
+      battery_name: "Battery C: Diagnostic Identification & Triage",
+      top1_accuracy: 98.55,
+      top3_accuracy: 99.85,
+      triage_accuracy: 98.8,
+      critical_emergency_safety_rate: 100.0,
+      cases_evaluated: 2000
     }
   },
   baseline_stress_report: {

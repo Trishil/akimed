@@ -851,3 +851,4 @@ export function getCaseSpecificAkinatorQuestion(
   const selectedIndex = Math.min(answeredCount, candidateQuestions.length - 1);
   return candidateQuestions[selectedIndex] || pathway[0];
 }
+
