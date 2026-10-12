@@ -1,12 +1,16 @@
 # AkiMed — Clinical Diagnostic Decision Engine & Dynamic Akinator
 
+[![Live Website](https://img.shields.io/badge/🌐%20Live%20Website-trishil.github.io%2Fakimed-2ea44f?style=for-the-badge)](https://trishil.github.io/akimed/)
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-4.x-38bdf8.svg)](https://tailwindcss.com/)
+[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/Trishil/akimed/deploy.yml?label=Pages%20Deploy&logo=github)](https://github.com/Trishil/akimed/actions)
 [![Architecture](https://img.shields.io/badge/Model-10--Layer%20Pre--LN%20Transformer-emerald.svg)]()
 [![Parameters](https://img.shields.io/badge/Parameters-9.02M-purple.svg)]()
 [![Top-3 Accuracy](https://img.shields.io/badge/Top--3%20Accuracy-99.99%25-brightgreen.svg)]()
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
+
+> 🌐 **Live Application URL**: [https://trishil.github.io/akimed/](https://trishil.github.io/akimed/)
 
 > **AkiMed** is an evidence-based clinical diagnostic support system and interactive dynamic inquiry engine ("Dr. Akinator") designed for medical students (MBBS/MD) and healthcare professionals. Powered by a 10-Layer Pre-LayerNorm Clinical Attention Transformer (~9.02M parameters) and real-time Bayesian belief updating, AkiMed provides 5-Tier Emergency Severity Index (ESI) triage, differential diagnosis generation, and hypothesis-directed clinical inquiry.
 
