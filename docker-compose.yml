@@ -12,3 +12,4 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - AKIMED_ENGINE_URL=${AKIMED_ENGINE_URL:-http://host.docker.internal:8000}
     restart: unless-stopped
+

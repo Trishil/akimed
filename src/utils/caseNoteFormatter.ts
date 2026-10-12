@@ -78,3 +78,4 @@ export function formatSoapNote(
 
   return lines.join('\n');
 }
+

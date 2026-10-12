@@ -207,3 +207,4 @@ export const DEFAULT_TELEMETRY_DATA: TelemetryData = {
     morbidity_clusters: 49
   }
 };
+
