@@ -371,18 +371,18 @@ app.post('/api/akinator/step', async (req: Request, res: Response) => {
     return res.json(localAkinatorResult);
   }
 
-  // If user completed up to 20 questions or AI is unavailable, use fallback logic
-  const deterministicFallbackAssessment = generateDeterministicAssessment(patient);
-  const topLikelihood = deterministicFallbackAssessment.topDiagnoses[0]?.likelihood ?? 50;
-  const hasReachedHighConfidence = topLikelihood >= 85 && step >= 10;
-  const hasExhaustedBudget = step >= 20 || history.length >= 20;
-  const isConcluded = hasReachedHighConfidence || hasExhaustedBudget;
-  const isDefinitive = topLikelihood >= 85;
-
+  // If AI is unavailable, use client dynamic Bayesian engine across all conditions
   if (!ai) {
     const dynamicStep = computeAkinatorInferenceStep(patient, history, step, activeHypothesis);
     return res.json(dynamicStep);
   }
+
+  const deterministicFallbackAssessment = generateDeterministicAssessment(patient);
+  const topLikelihood = deterministicFallbackAssessment.topDiagnoses[0]?.likelihood ?? 50;
+  const hasReachedHighConfidence = topLikelihood >= 95;
+  const hasExhaustedBudget = step >= 60; // Do not cap at 20 questions
+  const isConcluded = hasReachedHighConfidence || hasExhaustedBudget;
+  const isDefinitive = topLikelihood >= 95;
 
   try {
     const historyText = history
@@ -408,23 +408,24 @@ PATIENT PROFILE:
 PRIOR AKINATOR QUESTIONS AND STUDENT ANSWERS:
 ${historyText || 'No prior questions answered yet (Step 1).'}
 
-CURRENT STEP: ${step} (Max 20 questions budget).
+CURRENT STEP: ${step} (Goal: >=95% diagnostic certainty. Do NOT cap at 20 questions).
 
 TASK:
-1. PATIENT PRESENTATION COHERENCE:
-   - Formulate nextQuestion to DIRECTLY and LOGICALLY investigate the patient's specific presentation (e.g. if tropical travel/fevers, explore Malaria vs Dengue vs Typhoid vs Leptospirosis; if tearing chest pain, explore Aortic Dissection vs STEMI vs PE vs Pericarditis; if abdominal pain, explore Appendicitis vs Cholecystitis vs Pancreatitis vs Mesenteric Ischemia; if headache/stiff neck, explore Bacterial Meningitis vs SAH vs Encephalitis; if dyspnea, explore PE vs Asthma vs Pneumonia).
-   - NEVER ask generic, unrelated questions (e.g., do not ask about joint stiffness or bowel habits if the patient presents with acute chest pain, unless pathognomonically linked).
+1. PATIENT PRESENTATION COHERENCE & DYNAMIC DIFFERENTIAL:
+   - Candidate diagnoses must be open across ALL medical specialties (Infectious, Cardiac, Pulmonary, GI/Abdominal, Neurological, Renal).
+   - If answers refute the initial suspicion, you MUST dynamically pivot the primary differential to the new leading condition.
+   - Formulate nextQuestion to DIRECTLY and LOGICALLY discriminate between the top competing conditions in the current differential.
+   - NEVER ask generic, unrelated questions.
    - NEVER re-ask signs, symptoms, or findings that the patient ALREADY confirmed in their chief complaint, travel history, or previous answers.
 
 2. QUESTION FORMAT:
    - Must be a single closed, testable proposition compatible with a 5-point Likert scale (Yes / Probably Yes / Don't Know / Probably Not / No).
-   - Never use open-ended category titles or ambiguous phrasing (e.g., instead of "Characterize your chest pain:", ask "Does the chest pain radiate directly between your shoulder blades with sudden tearing intensity?").
+   - Never use open-ended category titles or ambiguous phrasing.
 
 3. DIAGNOSTIC TRAJECTORY & STOPPING CRITERION:
    - Recalculate candidate diagnoses and their probability percentages (confidence 0-100%).
-   - Conclude early (isConcluded = true) ONLY IF top candidate confidence >= 85% AND current step >= 10.
-   - Otherwise, MUST continue asking high-yield clinical discriminators until step == 20.
-   - If step == 20 is reached without confidence >= 85%, conclude with a differential ranking of candidates rather than declaring an unfounded definitive diagnosis.
+   - Conclude (isConcluded = true) ONLY IF top candidate confidence >= 95%.
+   - Do NOT stop asking questions until confidence >= 95% is attained.
 
 4. If concluding, provide the full assessment with differential list, pathophysiology, and immediate action plan.`;
 
