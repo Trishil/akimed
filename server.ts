@@ -430,15 +430,25 @@ PATIENT PROFILE:
 PRIOR AKINATOR QUESTIONS AND STUDENT ANSWERS:
 ${historyText || 'No prior questions answered yet (Step 1).'}
 
-CURRENT STEP: ${step} (Max 20 questions).
+CURRENT STEP: ${step} (Max 20 questions budget).
 
 TASK:
-1. Recalculate candidate diagnoses and their probability percentages (confidence 0-100%).
-2. Decide whether to CONCLUDE (isConcluded = true):
-   - Conclude early ONLY IF confidence >= 85% AND turn >= 10.
-   - Otherwise, MUST continue selecting discriminators until turn == 20.
-   - All questions must be closed, testable propositions compatible with a 5-point Likert scale (Yes, Probably Yes, Don't Know, Probably Not, No). Never ask open-ended questions like "Characterize your pain".
-3. If concluding, provide the full assessment with differential list and pathophysiology.`;
+1. PATIENT PRESENTATION COHERENCE:
+   - Formulate nextQuestion to DIRECTLY and LOGICALLY investigate the patient's specific presentation (e.g. if tropical travel/fevers, explore Malaria vs Dengue vs Typhoid vs Leptospirosis; if tearing chest pain, explore Aortic Dissection vs STEMI vs PE vs Pericarditis; if abdominal pain, explore Appendicitis vs Cholecystitis vs Pancreatitis vs Mesenteric Ischemia; if headache/stiff neck, explore Bacterial Meningitis vs SAH vs Encephalitis; if dyspnea, explore PE vs Asthma vs Pneumonia).
+   - NEVER ask generic, unrelated questions (e.g., do not ask about joint stiffness or bowel habits if the patient presents with acute chest pain, unless pathognomonically linked).
+   - NEVER re-ask signs, symptoms, or findings that the patient ALREADY confirmed in their chief complaint, travel history, or previous answers.
+
+2. QUESTION FORMAT:
+   - Must be a single closed, testable proposition compatible with a 5-point Likert scale (Yes / Probably Yes / Don't Know / Probably Not / No).
+   - Never use open-ended category titles or ambiguous phrasing (e.g., instead of "Characterize your chest pain:", ask "Does the chest pain radiate directly between your shoulder blades with sudden tearing intensity?").
+
+3. DIAGNOSTIC TRAJECTORY & STOPPING CRITERION:
+   - Recalculate candidate diagnoses and their probability percentages (confidence 0-100%).
+   - Conclude early (isConcluded = true) ONLY IF top candidate confidence >= 85% AND current step >= 10.
+   - Otherwise, MUST continue asking high-yield clinical discriminators until step == 20.
+   - If step == 20 is reached without confidence >= 85%, conclude with a differential ranking of candidates rather than declaring an unfounded definitive diagnosis.
+
+4. If concluding, provide the full assessment with differential list, pathophysiology, and immediate action plan.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
