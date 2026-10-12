@@ -1,0 +1,14 @@
+services:
+  akimed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: akimed-app
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - AKIMED_ENGINE_URL=${AKIMED_ENGINE_URL:-http://host.docker.internal:8000}
+    restart: unless-stopped

@@ -1,0 +1,6 @@
+{
+  "name": "AkiMed - Clinical Akinator & Diagnostic Triage AI",
+  "description": "Interactive clinical Akinator and emergency triage assistant for MBBS students, generating differential diagnoses and asking dynamic discriminator questions based on symptoms, demographics, and travel history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #FAF8F5;
+    color: #18181B;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+}
+
+/* Tactile Physical Studio Shadows (Akademia Style) */
+.shadow-tactile {
+  box-shadow: 4px 4px 0px 0px #18181B;
+}
+
+.shadow-tactile-sm {
+  box-shadow: 2px 2px 0px 0px #18181B;
+}
+
+.shadow-tactile-lg {
+  box-shadow: 6px 6px 0px 0px #18181B;
+}
+
+.shadow-tactile-hover:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #18181B;
+}
+
+.shadow-tactile-hover:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #18181B;
+}
+
+/* Organic Paper Speckle Texture */
+.bg-paper-pattern {
+  background-color: #FAF8F5;
+  background-image: radial-gradient(#d1cfc7 0.75px, transparent 0.75px), radial-gradient(#d1cfc7 0.75px, #FAF8F5 0.75px);
+  background-size: 30px 30px;
+  background-position: 0 0, 15px 15px;
+}
+
+/* Yellow Highlighter Brush Stroke Behind Headlines */
+.highlighter-stroke {
+  position: relative;
+  z-index: 1;
+}
+
+.highlighter-stroke::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 4px;
+  height: 40%;
+  background: #FEF08A;
+  z-index: -1;
+  border-radius: 4px;
+  transform: rotate(-0.8deg);
+}
+
+.highlighter-mint::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 4px;
+  height: 40%;
+  background: #A7F3D0;
+  z-index: -1;
+  border-radius: 4px;
+  transform: rotate(0.6deg);
+}
+
+/* Circular Stamp Badge Rotation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 35s linear infinite;
+}
