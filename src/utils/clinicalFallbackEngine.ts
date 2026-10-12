@@ -39,9 +39,13 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     s.includes('neck stiffness') ||
     s.includes('hemoptysis') ||
     s.includes('confusion') ||
+    s.includes('jaundice') ||
+    s.includes('dark urine') ||
+    s.includes('blackwater') ||
     (v && v.spo2 && v.spo2 < 92) ||
     (v && v.bpSystolic && (v.bpSystolic > 200 || v.bpSystolic < 90)) ||
     (v && v.heartRate && v.heartRate > 120) ||
+    (v && v.heartRate && v.heartRate >= 115 && v.temperatureC && v.temperatureC >= 38.5) ||
     (v && v.temperatureC && v.temperatureC >= 40.0)
   ) {
     return {
@@ -49,11 +53,11 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
       levelName: 'Emergent',
       color: '#ea580c', // orange-600
       timeToPhysician: '< 15 minutes',
-      rationale: 'High-risk presentation with potential rapid clinical deterioration (e.g. Acute Coronary Syndrome, Aortic Dissection, Meningococcemia, or Pulmonary Embolism).',
+      rationale: 'High-risk presentation with potential rapid clinical deterioration (e.g. Acute Coronary Syndrome, Aortic Dissection, Meningococcemia, Pulmonary Embolism, or Complicated Falciparum Malaria with Intravascular Hemolysis).',
       redFlags: [
         'Vital sign instability / High shock index',
         'Severe acute visceral or neurological pain',
-        'Potential rapid airway or cardiovascular decompensation',
+        'Evidence of end-organ compromise or active intravascular hemolysis',
       ],
     };
   }
@@ -597,6 +601,20 @@ export function getNextAkinatorQuestionDeterministic(
         clinicalRationale: 'Signals consumptive coagulopathy, severe dengue hemorrhagic fever, or microvascular thrombosis.',
         possibleAnswers: likertAnswers,
       },
+      {
+        questionId: 'trop-5',
+        questionText: 'Has the patient experienced any drowsiness, disorientation, persistent confusion, or seizures?',
+        category: 'Red Flag',
+        clinicalRationale: 'Assesses for Cerebral Malaria (Plasmodium falciparum cytoadherence in cerebral microvasculature), a medical emergency with high mortality.',
+        possibleAnswers: likertAnswers,
+      },
+      {
+        questionId: 'trop-6',
+        questionText: 'Has there been a marked decrease in daily urine output (oliguria) or inability to retain oral fluids due to persistent vomiting?',
+        category: 'Red Flag',
+        clinicalRationale: 'Indicates acute tubular necrosis / acute kidney injury in severe falciparum malaria or severe hypovolemic shock.',
+        possibleAnswers: likertAnswers,
+      },
     ];
   } else if (s.includes('chest') || s.includes('tearing') || s.includes('pressure') || s.includes('angina') || s.includes('heart')) {
     // 2. Chest pain / Cardiology path
@@ -698,6 +716,18 @@ export function getNextAkinatorQuestionDeterministic(
 
   // Combine path-specific questions with the systemic bank up to 20 questions
   const fullQuestions = [...pathQuestions, ...systemicBank];
-  const safeIndex = Math.min(answeredCount, fullQuestions.length - 1);
-  return fullQuestions[safeIndex];
+
+  // Avoid re-asking findings already stated or confirmed in patient chief presentation
+  const alreadyConfirmed = (q: AkinatorQuestion): boolean => {
+    if (q.questionId === 'trop-1' && (s.includes('rigor') || s.includes('cyclical') || s.includes('every 48'))) return true;
+    if (q.questionId === 'trop-2' && (s.includes('jaundice') || s.includes('dark urine') || s.includes('yellow eyes') || s.includes('dark pee'))) return true;
+    if (q.questionId === 'cardio-1' && s.includes('tearing')) return true;
+    if (q.questionId === 'gi-1' && (s.includes('periumbilical') || s.includes('bellybutton')) && (s.includes('rlq') || s.includes('right lower'))) return true;
+    if (q.questionId === 'neuro-1' && (s.includes('stiff neck') || s.includes('nuchal rigidity') || s.includes('chin to chest'))) return true;
+    return false;
+  };
+
+  const eligibleQuestions = fullQuestions.filter(q => !alreadyConfirmed(q));
+  const safeIndex = Math.min(answeredCount, eligibleQuestions.length - 1);
+  return eligibleQuestions[safeIndex] || fullQuestions[0];
 }

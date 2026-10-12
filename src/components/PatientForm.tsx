@@ -1,22 +1,26 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PatientProfile } from '../types/clinical';
-import { extractClinicalConceptsFuzzy, RecognizedClinicalConcept } from '../utils/clinicalFuzzyMatcher';
+import { 
+  parseClinicalSearchQuery, 
+  applyParsedSearchToPatientProfile,
+  ClinicalSearchParseResult,
+  ExtractedClinicalConcept
+} from '../utils/clinicalSearchParser';
 import { 
   User, 
   HeartPulse, 
-  AlertTriangle, 
   Plane, 
-  Pill, 
-  Thermometer, 
+  Clock, 
   ShieldAlert, 
-  Plus, 
-  X, 
+  Sparkles, 
+  CheckCircle2, 
   ChevronDown, 
   ChevronUp,
-  Sparkles,
-  CheckCircle2,
-  Wand2,
-  HelpCircle
+  Search,
+  Activity,
+  ArrowRight,
+  Stethoscope,
+  Info
 } from 'lucide-react';
 
 interface PatientFormProps {
@@ -27,37 +31,23 @@ interface PatientFormProps {
   isLoading: boolean;
 }
 
-const COMMON_CONDITIONS = [
-  'Hypertension',
-  'Type 2 Diabetes',
-  'Asthma',
-  'COPD',
-  'G6PD Deficiency',
-  'Chronic Kidney Disease',
-  'Coronary Artery Disease',
-  'Oral Contraceptive Use',
-  'Immunosuppressed / Steroids',
-];
-
-const COMMON_MEDS = [
-  'Metformin',
-  'Lisinopril',
-  'Amlodipine',
-  'Aspirin',
-  'Warfarin',
-  'Combined OCP (Estrogen/Progestin)',
-  'Salbutamol Inhaler',
-  'Atorvastatin',
-  'Insulin',
-];
-
-const COMMON_ALLERGIES = [
-  'Penicillin / Amoxicillin',
-  'Sulfa Antibiotics',
-  'Aspirin / NSAIDs',
-  'Cephalosporins',
-  'Latex',
-  'No Known Drug Allergies (NKDA)',
+const CLINICAL_SEARCH_EXAMPLES = [
+  {
+    label: '🌴 Kenya Malaria Case',
+    query: '29M presents with 4 days of cyclical spiking fevers every 48 hours, shaking rigors, severe frontal headache, diaphoresis, mild jaundice, dark urine. Returned 12 days ago from rural Kenya safari; did not take chemoprophylaxis. Temp 39.4, HR 118, BP 110/70. NKDA.'
+  },
+  {
+    label: '🫀 STEMI (Cardiology)',
+    query: '58yo male with acute crushing substernal chest pain radiatin to left arm and jaw for 2 hours, profuse diaphoresis, nausea, dyspnea. Hx of HTN and T2D. Vitals: BP 155/95, HR 105, SpO2 96%.'
+  },
+  {
+    label: '🧠 Acute Meningitis (Neurology)',
+    query: '21yo female college student presents with sudden severe headache, high fever, photophobia, and stiff neck for 24 hours. Unable to touch chin to chest. Vitals: Temp 39.8C, HR 122, BP 100/60. NKDA.'
+  },
+  {
+    label: '🫁 Pulmonary Embolism (PE)',
+    query: '45yo female with sudden SOB and pleuritic CP on deep inspiration for 6 hours. Hx of DVT on Warfarin. Vitals: HR 115, RR 24, SpO2 91% on room air.'
+  }
 ];
 
 export const PatientForm: React.FC<PatientFormProps> = ({
@@ -67,81 +57,106 @@ export const PatientForm: React.FC<PatientFormProps> = ({
   onGenerateTriage,
   isLoading,
 }) => {
-  const [showVitals, setShowVitals] = useState<boolean>(true);
-  const [customCondition, setCustomCondition] = useState('');
-  const [customMed, setCustomMed] = useState('');
-  const [customAllergy, setCustomAllergy] = useState('');
+  const [showVitalsDrawer, setShowVitalsDrawer] = useState<boolean>(false);
 
-  // Real-time Fuzzy NLP Typo & Concept Detection
-  const recognizedConcepts: RecognizedClinicalConcept[] = useMemo(() => {
-    return extractClinicalConceptsFuzzy(patient.chiefSymptoms || '');
+  // Real-time Semantic Clinical Search Parse
+  const parseResult: ClinicalSearchParseResult = useMemo(() => {
+    return parseClinicalSearchQuery(patient.chiefSymptoms || '');
   }, [patient.chiefSymptoms]);
 
-  const toggleArrayItem = (field: 'preExistingConditions' | 'currentMedications' | 'allergies', item: string) => {
+  // Automatically synchronize parsed demographics and travel if detected in the search query
+  useEffect(() => {
+    if (!patient.chiefSymptoms) return;
+
     setPatient((prev) => {
-      const current = prev[field] || [];
-      if (current.includes(item)) {
-        return { ...prev, [field]: current.filter((x) => x !== item) };
-      } else {
-        return { ...prev, [field]: [...current, item] };
+      const updated = applyParsedSearchToPatientProfile(prev, parseResult);
+      // Only trigger state update if actual properties changed to prevent rerender loops
+      if (
+        (parseResult.parsedDemographics.age && updated.age !== prev.age) ||
+        (parseResult.parsedDemographics.gender && updated.gender !== prev.gender) ||
+        (parseResult.parsedDemographics.isPregnant !== undefined && updated.isPregnant !== prev.isPregnant) ||
+        (parseResult.parsedTravel && updated.travelHistory !== prev.travelHistory) ||
+        (parseResult.parsedDuration && updated.symptomDuration !== prev.symptomDuration) ||
+        (parseResult.parsedVitals.temperatureC && updated.vitalSigns?.temperatureC !== prev.vitalSigns?.temperatureC) ||
+        (parseResult.parsedVitals.heartRate && updated.vitalSigns?.heartRate !== prev.vitalSigns?.heartRate)
+      ) {
+        return updated;
       }
+      return prev;
     });
+  }, [parseResult, patient.chiefSymptoms, setPatient]);
+
+  const handleApplyExample = (exampleQuery: string) => {
+    const parsed = parseClinicalSearchQuery(exampleQuery);
+    setPatient((prev) => ({
+      ...applyParsedSearchToPatientProfile(prev, parsed),
+      chiefSymptoms: exampleQuery
+    }));
   };
 
-  const addCustomItem = (field: 'preExistingConditions' | 'currentMedications' | 'allergies', val: string, clearFn: () => void) => {
-    if (!val.trim()) return;
-    setPatient((prev) => ({
-      ...prev,
-      [field]: [...(prev[field] || []), val.trim()],
-    }));
-    clearFn();
+  const handleLaunchAkinator = () => {
+    // Ensure all parsed properties are merged prior to starting
+    setPatient((prev) => applyParsedSearchToPatientProfile(prev, parseResult));
+    onStartAkinator();
   };
 
-  const removeArrayItem = (field: 'preExistingConditions' | 'currentMedications' | 'allergies', index: number) => {
-    setPatient((prev) => ({
-      ...prev,
-      [field]: (prev[field] || []).filter((_, i) => i !== index),
-    }));
+  const handleLaunchTriage = () => {
+    setPatient((prev) => applyParsedSearchToPatientProfile(prev, parseResult));
+    onGenerateTriage();
   };
 
   return (
-    <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-tactile text-zinc-900 relative overflow-hidden transition-all">
-      {/* Decorative Hand-drawn Doodles (Akademia Style) */}
-      <div className="absolute top-4 right-5 text-zinc-300 pointer-events-none select-none hidden sm:block">
-        <svg width="64" height="40" viewBox="0 0 64 40" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M4 12C12 4 24 6 28 16C32 26 44 28 58 18" />
-          <path d="M12 28C20 22 30 24 34 32" />
-        </svg>
-      </div>
-
-      {/* Form Header */}
+    <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-tactile text-zinc-900 relative transition-all">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b-2 border-zinc-900/10 gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white flex items-center justify-center font-bold shadow-tactile-sm">
-            <User className="w-5 h-5 text-emerald-400" />
+            <Search className="w-5 h-5 text-emerald-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-zinc-900 tracking-tight">
-                Patient Clinical Profile
+              <h2 className="text-xl font-black text-zinc-900 tracking-tight font-serif">
+                Clinical Search & Diagnostic Intake
               </h2>
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-yellow-200/80 text-zinc-900 border border-zinc-900">
-                Fuzzy Typo Tolerant
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-400">
+                ⚡ Real-Time Semantic Parser
               </span>
             </div>
             <p className="text-xs text-zinc-500 font-medium">
-              Enter symptoms naturally — typos, abbreviations, and informal complaints are automatically parsed
+              Enter symptoms, medical abbreviations (e.g., SOB, CP, NKDA, DVT), or full doctor notes naturally.
             </p>
           </div>
         </div>
+
+        {/* Quick Example Scenarios */}
+        <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden md:inline">
+            Quick Cases:
+          </span>
+          {CLINICAL_SEARCH_EXAMPLES.map((ex, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleApplyExample(ex.query)}
+              className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-yellow-200 text-zinc-800 border border-zinc-300 transition-colors cursor-pointer"
+            >
+              {ex.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-6">
-        {/* Row 1: Demographics */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="space-y-5">
+        {/* Minimal Basic Patient Info Bar */}
+        <div className="bg-[#FAF8F5] border-2 border-zinc-900/20 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
           <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
-              Age (Years) <span className="text-emerald-600">*</span>
+            <label className="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1">
+              Age (Years)
+              {parseResult.parsedDemographics.age && (
+                <span className="ml-1 text-[10px] text-emerald-700 font-normal">
+                  (auto-detected: {parseResult.parsedDemographics.age}y)
+                </span>
+              )}
             </label>
             <input
               type="number"
@@ -149,21 +164,26 @@ export const PatientForm: React.FC<PatientFormProps> = ({
               max="120"
               value={patient.age || ''}
               onChange={(e) => setPatient((p) => ({ ...p, age: parseInt(e.target.value) || 0 }))}
-              className="w-full bg-[#FAF8F5] border-2 border-zinc-900/25 focus:border-zinc-900 focus:bg-white rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-900 outline-none transition-all"
+              className="w-full bg-white border-2 border-zinc-900/25 focus:border-zinc-900 rounded-xl px-3 py-1.5 text-sm font-bold text-zinc-900 outline-none"
               placeholder="e.g. 29"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
-              Biological Sex <span className="text-emerald-600">*</span>
+            <label className="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1">
+              Biological Sex
+              {parseResult.parsedDemographics.gender && (
+                <span className="ml-1 text-[10px] text-emerald-700 font-normal">
+                  (auto-detected: {parseResult.parsedDemographics.gender})
+                </span>
+              )}
             </label>
             <select
               value={patient.gender}
               onChange={(e) =>
                 setPatient((p) => ({ ...p, gender: e.target.value as 'Male' | 'Female' | 'Other' }))
               }
-              className="w-full bg-[#FAF8F5] border-2 border-zinc-900/25 focus:border-zinc-900 focus:bg-white rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-900 outline-none transition-all"
+              className="w-full bg-white border-2 border-zinc-900/25 focus:border-zinc-900 rounded-xl px-3 py-1.5 text-sm font-bold text-zinc-900 outline-none"
             >
               <option value="Male">Male</option>
               <option value="Female">Female</option>
@@ -172,17 +192,17 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
+            <label className="block text-[11px] font-bold text-zinc-700 uppercase tracking-wider mb-1">
               Pregnancy Status
             </label>
-            <div className="flex items-center h-[44px]">
-              <label className="relative flex items-center gap-2.5 cursor-pointer select-none">
+            <div className="flex items-center h-[36px]">
+              <label className="relative flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={patient.isPregnant || false}
                   disabled={patient.gender === 'Male'}
                   onChange={(e) => setPatient((p) => ({ ...p, isPregnant: e.target.checked }))}
-                  className="w-5 h-5 accent-zinc-900 rounded cursor-pointer"
+                  className="w-4 h-4 accent-zinc-900 rounded cursor-pointer"
                 />
                 <span className={`text-xs font-bold ${patient.gender === 'Male' ? 'text-zinc-400' : 'text-zinc-800'}`}>
                   Currently Pregnant (Gestational Risk)
@@ -192,195 +212,141 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Chief Symptoms & Clinical Presentation with Live Fuzzy Typo Bar */}
+        {/* Unified Clinical Search / Chat Omnibox */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider">
-              Chief Symptoms & Clinical Presentation <span className="text-emerald-600">*</span>
+            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Stethoscope className="w-4 h-4 text-zinc-800" />
+              Clinical Case Description & Presentation
             </label>
             <span className="text-[11px] text-zinc-500 font-medium">
-              Levenshtein & Phonetic Parser Active
+              Free-text • Typo-guarded • Medical shortforms enabled
             </span>
           </div>
-          
+
           <textarea
-            rows={3}
+            rows={4}
             value={patient.chiefSymptoms}
             onChange={(e) => setPatient((p) => ({ ...p, chiefSymptoms: e.target.value }))}
-            className="w-full bg-[#FAF8F5] border-2 border-zinc-900/25 focus:border-zinc-900 focus:bg-white rounded-2xl p-4 text-sm font-medium text-zinc-900 outline-none transition-all placeholder:text-zinc-400"
-            placeholder="Type symptoms freely, e.g. 'substurnal cheast pane radiatin to left arm with shorness of breth and diaforetic feeling'..."
+            className="w-full bg-[#FAF8F5] border-2 border-zinc-900/30 focus:border-zinc-900 focus:bg-white rounded-2xl p-4 text-sm font-medium text-zinc-900 outline-none transition-all placeholder:text-zinc-400 shadow-inner"
+            placeholder="Type or paste patient presentation freely. E.g. 'Cyclical spiking fevers every 48 hours, shaking rigors, severe frontal headache, diaphoresis, mild jaundice, dark urine. Returned 12 days ago from Kenya safari. Temp 39.4, HR 118, BP 110/70. NKDA'..."
           />
+        </div>
 
-          {/* LIVE AI UNDERSTANDING & TYPO RESOLUTION CHIP BAR */}
-          <div className="mt-2.5 p-3 rounded-2xl bg-zinc-50 border-2 border-zinc-900/15">
-            <div className="flex items-center gap-2 mb-2">
-              <Wand2 className="w-3.5 h-3.5 text-teal-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-zinc-800">
-                Live AI Understanding & Typo Correction
-              </span>
-              <span className="text-[10px] text-zinc-500 font-medium ml-auto">
-                {recognizedConcepts.length} symptom{recognizedConcepts.length === 1 ? '' : 's'} extracted
-              </span>
+        {/* Live Semantic Breakdown HUD */}
+        <div className="p-4 rounded-2xl bg-zinc-50 border-2 border-zinc-900/15 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <h3 className="text-xs font-black uppercase tracking-wider text-zinc-900">
+                Live AI Understanding & Entity Extraction
+              </h3>
             </div>
+            <span className="text-[11px] text-zinc-500 font-medium">
+              {parseResult.concepts.length} clinical concept{parseResult.concepts.length === 1 ? '' : 's'} identified
+            </span>
+          </div>
 
-            {recognizedConcepts.length === 0 ? (
-              <p className="text-xs text-zinc-500 italic">
-                Start typing above. The AI will continuously detect clinical concepts, resolve typos, and highlight recognized findings here in real-time.
-              </p>
-            ) : (
+          {parseResult.concepts.length === 0 ? (
+            <p className="text-xs text-zinc-500 italic">
+              Start typing symptoms, vitals, or clinical shortforms above. The AI will extract and structure clinical concepts in real time.
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {/* Symptoms & Signs Pills */}
               <div className="flex flex-wrap gap-2">
-                {recognizedConcepts.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border-2 transition-all ${
-                      item.isTypoCorrected
-                        ? 'bg-amber-100 text-amber-950 border-amber-400 shadow-sm'
-                        : 'bg-emerald-100 text-emerald-950 border-emerald-400 shadow-sm'
-                    }`}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-zinc-800 shrink-0" />
-                    <span>{item.canonicalName}</span>
-                    {item.isTypoCorrected && (
-                      <span className="text-[10px] px-1.5 py-0.2 bg-white/80 rounded-full font-mono text-zinc-800 border border-amber-300">
-                        corrected from "{item.matchedWord}"
-                      </span>
-                    )}
-                  </div>
-                ))}
+                {parseResult.concepts.map((concept, idx) => {
+                  const isVital = concept.category === 'Vital Sign';
+                  const isTravel = concept.category === 'Endemic Travel';
+                  const isAllergy = concept.category === 'Allergy';
+                  const isRisk = concept.category === 'Risk Factor';
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border-2 transition-all ${
+                        isTravel
+                          ? 'bg-sky-100 text-sky-950 border-sky-400'
+                          : isVital
+                          ? 'bg-rose-100 text-rose-950 border-rose-400'
+                          : isAllergy
+                          ? 'bg-purple-100 text-purple-950 border-purple-400'
+                          : isRisk
+                          ? 'bg-amber-100 text-amber-950 border-amber-400'
+                          : 'bg-emerald-100 text-emerald-950 border-emerald-400'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                      <span>{concept.canonicalName}</span>
+                      {concept.isShortform && (
+                        <span className="text-[10px] px-1.5 py-0.2 bg-white/80 rounded-full font-mono text-zinc-800 border border-zinc-300">
+                          {concept.shortformOriginal}
+                        </span>
+                      )}
+                      {concept.isTypoCorrected && concept.correctedFrom && (
+                        <span className="text-[10px] px-1.5 py-0.2 bg-white/80 rounded-full font-mono text-zinc-800 border border-amber-300">
+                          fixed: "{concept.correctedFrom}"
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Row 3: Duration & Travel History */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5">
-              Symptom Duration / Chronology
-            </label>
-            <input
-              type="text"
-              value={patient.symptomDuration}
-              onChange={(e) => setPatient((p) => ({ ...p, symptomDuration: e.target.value }))}
-              className="w-full bg-[#FAF8F5] border-2 border-zinc-900/25 focus:border-zinc-900 focus:bg-white rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-900 outline-none transition-all"
-              placeholder="e.g. Sudden onset 2 hours ago, or 4 days"
-            />
-          </div>
+              {/* Parsed Travel, Chronology & Vitals Context Strip */}
+              {(parseResult.parsedTravel || parseResult.parsedDuration || parseResult.parsedVitals.temperatureC || parseResult.appliedShortforms.length > 0) && (
+                <div className="pt-2 border-t border-zinc-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                  {parseResult.parsedTravel && (
+                    <div className="flex items-center gap-1.5 text-sky-950 bg-sky-50 border border-sky-200 px-3 py-1.5 rounded-xl font-medium">
+                      <Plane className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      <span className="truncate">Travel: {parseResult.parsedTravel}</span>
+                    </div>
+                  )}
 
-          <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-              <Plane className="w-3.5 h-3.5 text-cyan-600" />
-              Recent Travel History (Key for Endemic Disease)
-            </label>
-            <input
-              type="text"
-              value={patient.travelHistory}
-              onChange={(e) => setPatient((p) => ({ ...p, travelHistory: e.target.value }))}
-              className="w-full bg-[#FAF8F5] border-2 border-zinc-900/25 focus:border-zinc-900 focus:bg-white rounded-xl px-4 py-2.5 text-sm font-semibold text-zinc-900 outline-none transition-all"
-              placeholder="e.g. Returned from Kenya safari 10 days ago (Malaria risk)"
-            />
-          </div>
-        </div>
+                  {parseResult.parsedDuration && (
+                    <div className="flex items-center gap-1.5 text-amber-950 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl font-medium">
+                      <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Duration: {parseResult.parsedDuration}</span>
+                    </div>
+                  )}
 
-        {/* Row 4: Past Medical History Pill Toggles */}
-        <div>
-          <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-2">
-            Pre-Existing Conditions & Risk Factors
-          </label>
-          <div className="flex flex-wrap gap-2 mb-2.5">
-            {COMMON_CONDITIONS.map((cond) => {
-              const active = patient.preExistingConditions.includes(cond);
-              return (
-                <button
-                  type="button"
-                  key={cond}
-                  onClick={() => toggleArrayItem('preExistingConditions', cond)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold border-2 transition-all cursor-pointer ${
-                    active
-                      ? 'bg-zinc-900 text-white border-zinc-900 shadow-tactile-sm'
-                      : 'bg-white text-zinc-700 border-zinc-900/20 hover:border-zinc-900 hover:bg-zinc-50'
-                  }`}
-                >
-                  {cond} {active && '✓'}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Row 5: Allergies & Medications */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Pill className="w-3.5 h-3.5 text-emerald-600" />
-              Current Medications
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_MEDS.slice(0, 6).map((med) => {
-                const active = patient.currentMedications.includes(med);
-                return (
-                  <button
-                    type="button"
-                    key={med}
-                    onClick={() => toggleArrayItem('currentMedications', med)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold border-2 transition-all cursor-pointer ${
-                      active
-                        ? 'bg-zinc-900 text-white border-zinc-900 shadow-tactile-sm'
-                        : 'bg-white text-zinc-700 border-zinc-900/20 hover:border-zinc-900'
-                    }`}
-                  >
-                    {med} {active && '✓'}
-                  </button>
-                );
-              })}
+                  {parseResult.appliedShortforms.length > 0 && (
+                    <div className="flex items-center gap-1.5 text-emerald-950 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl font-medium">
+                      <Info className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        Shortforms: {parseResult.appliedShortforms.map(s => `${s.shortform}→${s.expanded}`).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-              Known Drug Allergies (Safety Alert)
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {COMMON_ALLERGIES.slice(0, 4).map((alg) => {
-                const active = patient.allergies.includes(alg);
-                return (
-                  <button
-                    type="button"
-                    key={alg}
-                    onClick={() => toggleArrayItem('allergies', alg)}
-                    className={`px-3 py-1 rounded-full text-xs font-bold border-2 transition-all cursor-pointer ${
-                      active
-                        ? 'bg-rose-500 text-white border-zinc-900 shadow-tactile-sm'
-                        : 'bg-white text-zinc-700 border-zinc-900/20 hover:border-zinc-900'
-                    }`}
-                  >
-                    {alg} {active && '✓'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Row 6: Collapsible Objective Vitals Bar */}
-        <div className="border-2 border-zinc-900/15 rounded-2xl overflow-hidden bg-zinc-50/70">
+        {/* Collapsible Vitals Drawer (Optional fine-tuning) */}
+        <div className="border-2 border-zinc-900/15 rounded-2xl overflow-hidden bg-white">
           <button
             type="button"
-            onClick={() => setShowVitals(!showVitals)}
-            className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-zinc-100 transition-colors"
+            onClick={() => setShowVitalsDrawer(!showVitalsDrawer)}
+            className="w-full px-4 py-2.5 flex items-center justify-between text-left cursor-pointer hover:bg-zinc-50 transition-colors"
           >
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 flex items-center gap-2">
               <HeartPulse className="w-4 h-4 text-rose-500" />
-              Objective Vital Signs (Acuteness & ESI Triage)
+              Adjust Objective Vitals (BP, HR, RR, SpO2, Temp)
+              {(patient.vitalSigns?.temperatureC || patient.vitalSigns?.heartRate || patient.vitalSigns?.bpSystolic) && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                  Recorded
+                </span>
+              )}
             </span>
-            {showVitals ? <ChevronUp className="w-4 h-4 text-zinc-600" /> : <ChevronDown className="w-4 h-4 text-zinc-600" />}
+            {showVitalsDrawer ? <ChevronUp className="w-4 h-4 text-zinc-600" /> : <ChevronDown className="w-4 h-4 text-zinc-600" />}
           </button>
 
-          {showVitals && (
-            <div className="p-4 pt-0 grid grid-cols-2 sm:grid-cols-5 gap-3 border-t border-zinc-900/10">
+          {showVitalsDrawer && (
+            <div className="p-4 pt-2 grid grid-cols-2 sm:grid-cols-5 gap-3 border-t border-zinc-900/10 bg-[#FAF8F5]">
               <div>
-                <label className="block text-[11px] font-bold text-zinc-600 mb-1">Systolic BP (mmHg)</label>
+                <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">Systolic BP (mmHg)</label>
                 <input
                   type="number"
                   placeholder="120"
@@ -396,7 +362,7 @@ export const PatientForm: React.FC<PatientFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-600 mb-1">Heart Rate (bpm)</label>
+                <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">Heart Rate (bpm)</label>
                 <input
                   type="number"
                   placeholder="75"
@@ -412,7 +378,7 @@ export const PatientForm: React.FC<PatientFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-600 mb-1">Resp Rate (/min)</label>
+                <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">Resp Rate (/min)</label>
                 <input
                   type="number"
                   placeholder="16"
@@ -428,7 +394,7 @@ export const PatientForm: React.FC<PatientFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-600 mb-1">SpO2 (%)</label>
+                <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">SpO2 (%)</label>
                 <input
                   type="number"
                   placeholder="98"
@@ -444,7 +410,7 @@ export const PatientForm: React.FC<PatientFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-zinc-600 mb-1">Temp (°C)</label>
+                <label className="block text-[10px] font-bold text-zinc-600 uppercase mb-1">Temp (°C)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -463,26 +429,27 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           )}
         </div>
 
-        {/* Action Buttons - Tactile Akademia Pill Design */}
-        <div className="pt-2 flex flex-col sm:flex-row gap-3.5">
+        {/* Action Buttons */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
           <button
             type="button"
-            disabled={isLoading || !patient.chiefSymptoms.trim()}
-            onClick={onStartAkinator}
-            className="flex-1 py-3.5 px-6 rounded-full bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-sm border-2 border-zinc-900 shadow-tactile shadow-tactile-hover flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={isLoading || !patient.chiefSymptoms?.trim()}
+            onClick={handleLaunchAkinator}
+            className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4 text-zinc-950" />
-            <span>Launch "Dr. Akinator" (20-Questions Engine)</span>
+            <span>Launch "Dr. Akinator" (20-Questions Dynamic Engine)</span>
           </button>
 
           <button
             type="button"
-            disabled={isLoading || !patient.chiefSymptoms.trim()}
-            onClick={onGenerateTriage}
-            className="py-3.5 px-6 rounded-full bg-white hover:bg-zinc-100 text-zinc-900 font-extrabold text-sm border-2 border-zinc-900 shadow-tactile shadow-tactile-hover flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled={isLoading || !patient.chiefSymptoms?.trim()}
+            onClick={handleLaunchTriage}
+            className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-extrabold text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            <HeartPulse className="w-4 h-4 text-rose-500" />
-            <span>Direct Triage & Differential</span>
+            <Activity className="w-4 h-4 text-rose-600" />
+            <span>Direct Emergency Triage & Differential</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
