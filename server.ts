@@ -10,6 +10,7 @@ import {
   evaluateTriageDeterministic,
   checkAllergyAndMedInteractions,
 } from './src/utils/clinicalFallbackEngine.ts';
+import { computeAkinatorInferenceStep } from './src/utils/clinicalInferenceEngine.ts';
 import { DEFAULT_TELEMETRY_DATA } from './src/data/telemetryData.ts';
 
 dotenv.config();
@@ -379,40 +380,8 @@ app.post('/api/akinator/step', async (req: Request, res: Response) => {
   const isDefinitive = topLikelihood >= 85;
 
   if (!ai) {
-    const q = getNextAkinatorQuestionDeterministic(patient, step, history.length);
-    const leadDiag = deterministicFallbackAssessment.topDiagnoses[0]?.diseaseName || 'Clinical Syndrome';
-    const conf = Math.max(10, Math.min(95, topLikelihood + (isConcluded ? 5 : step * 2)));
-
-    const activeHypothesis = {
-      diseaseName: leadDiag,
-      status: step === 1 ? 'exploring' : (conf >= 85 ? 'corroborated' : 'pursuing'),
-      confidence: conf,
-      reason: `Evaluating cardinal presentation and discriminatory criteria for ${leadDiag}.`,
-      pivotedFrom: null
-    };
-
-    return res.json({
-      step,
-      maxSteps: 20,
-      isConcluded,
-      isDefinitive,
-      differentialRanking: deterministicFallbackAssessment.topDiagnoses.slice(0, 5),
-      activeHypothesis,
-      akinatorThought: isConcluded
-        ? (isDefinitive
-            ? `Clinical entropy reduction complete! ${deterministicFallbackAssessment.topDiagnoses[0]?.diseaseName} identified as definitive primary diagnosis.`
-            : `20-question inquiry budget reached. Presenting differential candidate spectrum to prevent premature diagnostic closure.`)
-        : `Turn ${step}/20: Analyzing symptom cluster and testing high-yield clinical discriminators for ${leadDiag}...`,
-      currentCandidates: deterministicFallbackAssessment.topDiagnoses.map((d, i) => ({
-        diseaseName: d.diseaseName,
-        confidence: Math.max(10, Math.min(95, d.likelihood + (isConcluded ? 5 : step * 2))),
-        trend: i === 0 ? 'rising' : 'falling',
-        reason: d.supportingFindings[0] || 'Matches patient profile',
-      })),
-      nextQuestion: isConcluded ? undefined : q,
-      finalDiagnosis: isConcluded ? deterministicFallbackAssessment.topDiagnoses[0] : undefined,
-      assessment: isConcluded ? deterministicFallbackAssessment : undefined,
-    });
+    const dynamicStep = computeAkinatorInferenceStep(patient, history, step, activeHypothesis);
+    return res.json(dynamicStep);
   }
 
   try {

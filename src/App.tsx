@@ -17,6 +17,7 @@ import {
   generateDeterministicAssessment, 
   getNextAkinatorQuestionDeterministic 
 } from './utils/clinicalFallbackEngine';
+import { computeAkinatorInferenceStep } from './utils/clinicalInferenceEngine';
 import { AlertCircle, Sparkles, BookOpen, RefreshCw, Cpu, HardDrive, ArrowDownRight, Compass } from 'lucide-react';
 import { TrainingTelemetryModal } from './components/TrainingTelemetryModal';
 
@@ -30,35 +31,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   // Akinator state
-  const [akinatorState, setAkinatorState] = useState<AkinatorState>({
-    step: 1,
-    maxSteps: 20,
-    isConcluded: false,
-    isDefinitive: false,
-    differentialRanking: [],
-    currentCandidates: [
-      {
-        diseaseName: 'Plasmodium falciparum Malaria',
-        confidence: 65,
-        trend: 'rising',
-        reason: 'Returning traveler from Kenya with cyclical fevers & splenomegaly',
-      },
-      {
-        diseaseName: 'Dengue Fever / Severe Dengue',
-        confidence: 25,
-        trend: 'stable',
-        reason: 'Acute fever with headache and thrombocytopenia',
-      },
-      {
-        diseaseName: 'Enteric (Typhoid) Fever',
-        confidence: 10,
-        trend: 'falling',
-        reason: 'Developing country exposure without step-ladder pattern',
-      },
-    ],
-    nextQuestion: getNextAkinatorQuestionDeterministic(INITIAL_PATIENT, 1, 0),
-    akinatorThought: 'Welcome to Dr. Akinator! Enter any patient presentation with travel history and chronology — I will test high-entropy clinical discriminators across up to 20 turns.',
-  });
+  const [akinatorState, setAkinatorState] = useState<AkinatorState>(() =>
+    computeAkinatorInferenceStep(INITIAL_PATIENT, [], 1)
+  );
 
   // Triage & Assessment state
   const [assessment, setAssessment] = useState<DiagnosticAssessment | null>(() =>
@@ -112,32 +87,12 @@ export default function App() {
       }
       setActiveTab('akinator');
     } catch (err) {
-      console.warn('Backend API request failed, using client deterministic logic:', err);
-      const fallbackAssessment = generateDeterministicAssessment(patient);
-      const leadDiag = fallbackAssessment.topDiagnoses[0]?.diseaseName || 'Clinical Syndrome';
-      setAssessment(fallbackAssessment);
-      setAkinatorState({
-        step: 1,
-        maxSteps: 20,
-        isConcluded: false,
-        isDefinitive: false,
-        differentialRanking: fallbackAssessment.topDiagnoses.slice(0, 5),
-        activeHypothesis: {
-          diseaseName: leadDiag,
-          status: 'exploring',
-          confidence: fallbackAssessment.topDiagnoses[0]?.likelihood || 60,
-          reason: `Broad differential screening: ${leadDiag} and alternative differentials.`,
-          pivotedFrom: null
-        },
-        currentCandidates: fallbackAssessment.topDiagnoses.map((d) => ({
-          diseaseName: d.diseaseName,
-          confidence: d.likelihood,
-          trend: 'stable',
-          reason: d.supportingFindings[0] || 'Matches patient presentation',
-        })),
-        nextQuestion: getNextAkinatorQuestionDeterministic(patient, 1, 0),
-        akinatorThought: `Assessing chief complaints and evaluating screening discriminator for ${leadDiag}...`,
-      });
+      console.warn('Backend API request failed, using client dynamic Bayesian logic:', err);
+      const dynamicStep = computeAkinatorInferenceStep(patient, [], 1);
+      setAkinatorState(dynamicStep);
+      if (dynamicStep.assessment) {
+        setAssessment(dynamicStep.assessment);
+      }
       setActiveTab('akinator');
     } finally {
       setIsLoading(false);
@@ -183,52 +138,17 @@ export default function App() {
         setAssessment(data.assessment);
       }
     } catch (err) {
-      console.warn('Akinator step API failed, using client fallback:', err);
-      const fallbackAssessment = generateDeterministicAssessment(patient);
-      const topLikelihood = fallbackAssessment.topDiagnoses[0]?.likelihood ?? 50;
-      const turn = newHistory.length;
-
-      // Strict stopping criteria:
-      // Early exit permitted ONLY if confidence >= 85% AND turn >= 10, or turn == 20
-      const hasReachedHighConfidence = topLikelihood >= 85 && turn >= 10;
-      const hasExhaustedBudget = turn >= 20;
-      const isConcluded = hasReachedHighConfidence || hasExhaustedBudget;
-      const isDefinitive = topLikelihood >= 85;
-
-      setAssessment(fallbackAssessment);
-      const leadDiag = fallbackAssessment.topDiagnoses[0]?.diseaseName || 'Clinical Syndrome';
-      const conf = Math.min(95, topLikelihood + (isConcluded ? 5 : turn * 2));
-
-      setAkinatorState((prev) => ({
-        step: prev.step + 1,
-        maxSteps: 20,
-        isConcluded,
-        isDefinitive,
-        differentialRanking: fallbackAssessment.topDiagnoses.slice(0, 5),
-        activeHypothesis: {
-          diseaseName: leadDiag,
-          status: (turn <= 1 ? 'exploring' : (conf >= 85 ? 'corroborated' : 'pursuing')) as 'exploring' | 'pursuing' | 'corroborated' | 'refuted',
-          confidence: conf,
-          reason: `Evaluating cardinal clinical criteria for ${leadDiag}.`,
-          pivotedFrom: null
-        },
-        akinatorThought: isConcluded
-          ? (isDefinitive
-              ? `Definitive diagnostic threshold reached (${topLikelihood}% confidence at Turn ${turn})! Identified ${fallbackAssessment.topDiagnoses[0]?.diseaseName}.`
-              : `Inquiry budget exhausted (Turn 20 reached with ${topLikelihood}% top confidence). Presenting differential spectrum across candidate conditions.`)
-          : `Turn ${turn}/20: Differentiating cardinal criteria for ${leadDiag}...`,
-        currentCandidates: fallbackAssessment.topDiagnoses.map((d, i) => ({
-          diseaseName: d.diseaseName,
-          confidence: Math.min(95, d.likelihood + (isConcluded ? 5 : turn * 2)),
-          trend: i === 0 ? 'rising' : 'falling',
-          reason: d.supportingFindings[0] || 'Confirmed by clinical answers',
-        })),
-        nextQuestion: isConcluded
-          ? undefined
-          : getNextAkinatorQuestionDeterministic(patient, prev.step + 1, newHistory.length),
-        finalDiagnosis: isConcluded ? fallbackAssessment.topDiagnoses[0] : undefined,
-        assessment: isConcluded ? fallbackAssessment : undefined,
-      }));
+      console.warn('Akinator step API failed, using client dynamic Bayesian engine:', err);
+      const dynamicStep = computeAkinatorInferenceStep(
+        patient,
+        newHistory,
+        akinatorState.step + 1,
+        akinatorState.activeHypothesis
+      );
+      setAkinatorState(dynamicStep);
+      if (dynamicStep.assessment) {
+        setAssessment(dynamicStep.assessment);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -302,23 +222,11 @@ export default function App() {
         setAssessment(data.assessment);
       }
     } catch {
-      const fallbackAssessment = generateDeterministicAssessment(vignette.patient);
-      setAssessment(fallbackAssessment);
-      setAkinatorState({
-        step: 1,
-        maxSteps: 20,
-        isConcluded: false,
-        isDefinitive: false,
-        differentialRanking: fallbackAssessment.topDiagnoses.slice(0, 5),
-        currentCandidates: fallbackAssessment.topDiagnoses.map((d) => ({
-          diseaseName: d.diseaseName,
-          confidence: d.likelihood,
-          trend: 'stable',
-          reason: d.supportingFindings[0] || 'Matches vignette presentation',
-        })),
-        nextQuestion: getNextAkinatorQuestionDeterministic(vignette.patient, 1, 0),
-        akinatorThought: `Loaded Case: "${vignette.title}". Beginning clinical inquiry.`,
-      });
+      const dynamicStep = computeAkinatorInferenceStep(vignette.patient, [], 1);
+      setAkinatorState(dynamicStep);
+      if (dynamicStep.assessment) {
+        setAssessment(dynamicStep.assessment);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -359,23 +267,11 @@ export default function App() {
         setAssessment(data.assessment);
       }
     } catch {
-      const fallbackAssessment = generateDeterministicAssessment(patient);
-      setAssessment(fallbackAssessment);
-      setAkinatorState({
-        step: 1,
-        maxSteps: 20,
-        isConcluded: false,
-        isDefinitive: false,
-        differentialRanking: fallbackAssessment.topDiagnoses.slice(0, 5),
-        currentCandidates: fallbackAssessment.topDiagnoses.map((d) => ({
-          diseaseName: d.diseaseName,
-          confidence: d.likelihood,
-          trend: 'stable',
-          reason: d.supportingFindings[0] || 'Matches patient profile',
-        })),
-        nextQuestion: getNextAkinatorQuestionDeterministic(patient, 1, 0),
-        akinatorThought: 'Session restarted! Ready for clinical inquiry.',
-      });
+      const dynamicStep = computeAkinatorInferenceStep(patient, [], 1);
+      setAkinatorState(dynamicStep);
+      if (dynamicStep.assessment) {
+        setAssessment(dynamicStep.assessment);
+      }
     } finally {
       setIsLoading(false);
     }

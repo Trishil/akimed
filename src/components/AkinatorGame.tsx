@@ -150,10 +150,12 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                     <span className="text-xs font-black uppercase tracking-wider text-zinc-900">
                       {akinatorState.activeHypothesis.status === 'refuted' ? 'Hypothesis Refuted & Pivoted' :
                        akinatorState.activeHypothesis.status === 'corroborated' ? 'Hypothesis Corroborated' :
-                       akinatorState.activeHypothesis.status === 'pursuing' ? 'Active Hypothesis Pursuit' : 'Broad Syndromic Exploration'}
+                       akinatorState.activeHypothesis.status === 'pursuing' ? 'Active Hypothesis Pursuit' : 'Differential Screening Phase'}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-white border-2 border-zinc-900 shadow-tactile-sm">
-                      {akinatorState.activeHypothesis.diseaseName} ({akinatorState.activeHypothesis.confidence}%)
+                      {akinatorState.activeHypothesis.status === 'exploring'
+                        ? `Differential Pool (Leading: ${akinatorState.activeHypothesis.diseaseName.split('/')[0].trim()} ${akinatorState.activeHypothesis.confidence}%)`
+                        : `${akinatorState.activeHypothesis.diseaseName} (${akinatorState.activeHypothesis.confidence}%)`}
                     </span>
                     {akinatorState.activeHypothesis.pivotedFrom && (
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
