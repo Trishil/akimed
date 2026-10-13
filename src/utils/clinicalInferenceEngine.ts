@@ -13,10 +13,18 @@ import { CLINICAL_DISEASES } from './clinicalDiseasesCatalog';
 import type { DiseaseProfile } from './clinicalDiseasesCatalog';
 import { QUESTION_CATALOG } from './clinicalQuestionsCatalog';
 import type { DiseaseLikelihoodMap, QuestionDefinition } from '../types/clinical';
+import {
+  evaluatePatientVitalsForDisease,
+  getDiseaseVitals,
+  type VitalsEliminationEvaluation,
+  type DiseaseVitalsProfile,
+} from '../data/diseaseVitalsOntology';
 
 export { CLINICAL_DISEASES };
-export type { DiseaseProfile, DiseaseLikelihoodMap, QuestionDefinition };
+export type { DiseaseProfile, DiseaseLikelihoodMap, QuestionDefinition, VitalsEliminationEvaluation, DiseaseVitalsProfile };
 export { QUESTION_CATALOG } from './clinicalQuestionsCatalog';
+export { evaluatePatientVitalsForDisease, getDiseaseVitals };
+
 
 // ===========================================================================
 // DYNAMIC EPIDEMIOLOGICAL PRIOR SEEDING (Over ALL 111 Conditions)
@@ -85,13 +93,54 @@ export function computeInitialDiseasePriors(patient: PatientProfile): Record<str
       }
     }
 
-    priors[id] = Math.max(0.2, score);
+    // 5. Continuous Vitals Likelihood with Clinical Margins (Soft Elimination)
+    // Does NOT lock vitals to brittle binary cliffs; respects physiological tolerance margins.
+    // If vitals are omitted or empty, multiplier remains 1.0 (neutral baseline).
+    if (patient.vitalSigns) {
+      const vEval = evaluatePatientVitalsForDisease(patient.vitalSigns, id, d.name);
+      score *= vEval.overallMultiplier;
+    }
+
+    priors[id] = Math.max(0.01, score);
   }
 
   // Normalize across all diseases so sum = 100%
   normalizeProbabilities(priors, diseaseIds);
   return priors;
 }
+
+/**
+ * Summarizes real-time physiological vitals compatibility across all 111 conditions.
+ */
+export function getVitalsEliminationSummary(patient: PatientProfile) {
+  const evaluations: Record<string, VitalsEliminationEvaluation> = {};
+  let favoredCount = 0;
+  let compatibleCount = 0;
+  let eliminatedCount = 0;
+
+  const diseaseIds = Object.keys(CLINICAL_DISEASES);
+  for (const id of diseaseIds) {
+    const d = CLINICAL_DISEASES[id];
+    const ev = evaluatePatientVitalsForDisease(patient.vitalSigns, id, d.name);
+    evaluations[id] = ev;
+    if (ev.status === 'favored') favoredCount++;
+    else if (ev.status === 'compatible') compatibleCount++;
+    else if (ev.status === 'eliminated') eliminatedCount++;
+  }
+
+  const total = diseaseIds.length;
+  const eliminationRate = total > 0 ? (eliminatedCount / total) * 100 : 0;
+
+  return {
+    evaluations,
+    favoredCount,
+    compatibleCount,
+    eliminatedCount,
+    eliminationRate,
+    totalConditions: total,
+  };
+}
+
 
 // Backward-compatible helper for callers expecting domain seed
 export function seedInitialDifferentialPriors(patient: PatientProfile): {
@@ -346,7 +395,13 @@ export function computeAkinatorInferenceStep(
       akinatorThought = `All ${turn} available clinical discriminators exhausted. Highest posterior candidate reached ${topConfidence}%. In strict adherence to MBBS diagnostic safety, presenting ranked differential spectrum without premature closure.`;
     }
   } else if (turn === 0) {
-    akinatorThought = `Turn 1: Initial differential priors seeded across ${allDiseaseIds.length} clinical conditions. Top cluster: ${sortedCandidates.slice(0, 3).map(c => c.profile.name.split(' ')[0]).join(' vs ')}. Active inquiry will dynamically adapt until >=95% certainty is attained.`;
+    const hasVitals = patient.vitalSigns && Object.values(patient.vitalSigns).some(v => v !== undefined && v !== null && (v as number) > 0);
+    const vSummary = hasVitals ? getVitalsEliminationSummary(patient) : null;
+    const vitalsNote = vSummary && vSummary.eliminatedCount > 0
+      ? ` Vitals tolerance analysis pruned ${vSummary.eliminatedCount}/${allDiseaseIds.length} incompatible conditions (${vSummary.eliminationRate.toFixed(0)}% eliminated).`
+      : '';
+    akinatorThought = `Turn 1: Initial differential priors seeded across ${allDiseaseIds.length} clinical conditions.${vitalsNote} Top cluster: ${sortedCandidates.slice(0, 3).map(c => c.profile.name.split(' ')[0]).join(' vs ')}. Active inquiry will dynamically adapt until >=95% certainty is attained.`;
+
   } else if (pivotedFrom) {
     akinatorThought = `Turn ${turn}: Diagnostic pivot detected! Previous lead ${pivotedFrom} refuted by patient response; ${topCandidate.profile.name} (${topConfidence}%) dynamically elevated to primary differential.`;
   } else {

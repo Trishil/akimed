@@ -20,11 +20,13 @@ import {
 import { computeAkinatorInferenceStep } from './utils/clinicalInferenceEngine';
 import { AlertCircle, Sparkles, BookOpen, RefreshCw, Cpu, HardDrive, ArrowDownRight, Compass } from 'lucide-react';
 import { TrainingTelemetryModal } from './components/TrainingTelemetryModal';
+import { TestingGround } from './components/TestingGround';
 
 const INITIAL_PATIENT: PatientProfile = SAMPLE_CLINICAL_VIGNETTES[0].patient;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'akinator' | 'triage' | 'vignettes' | 'guide'>('akinator');
+  const [activeTab, setActiveTab] = useState<'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide'>('akinator');
+
   const [patient, setPatient] = useState<PatientProfile>(INITIAL_PATIENT);
   const [history, setHistory] = useState<AkinatorQA[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -425,7 +427,21 @@ export default function App() {
           />
         )}
 
+        {/* Tab: Testing Ground & Diagnostic Arena */}
+        {activeTab === 'testing-ground' && (
+          <TestingGround
+            onLaunchCase={(newPatient) => {
+              setPatient(newPatient);
+              setHistory([]);
+              const initialState = computeAkinatorInferenceStep(newPatient, [], 1);
+              setAkinatorState(initialState);
+              setActiveTab('akinator');
+            }}
+          />
+        )}
+
         {/* Tab 3: Pre-built High-Yield MBBS Clinical Vignettes */}
+
         {activeTab === 'vignettes' && (
           <VignetteSelector onSelectVignette={handleSelectVignette} />
         )}

@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Stethoscope, Brain, Activity, Sparkles, BookOpen, Cpu, RotateCcw } from 'lucide-react';
+import { Stethoscope, Brain, Activity, Sparkles, BookOpen, Cpu, RotateCcw, Sliders } from 'lucide-react';
 import { TrainingTelemetryModal } from './TrainingTelemetryModal';
 
 interface HeaderProps {
-  activeTab: 'akinator' | 'triage' | 'vignettes' | 'guide';
-  setActiveTab: (tab: 'akinator' | 'triage' | 'vignettes' | 'guide') => void;
+  activeTab: 'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide';
+  setActiveTab: (tab: 'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide') => void;
   onResetPatient: () => void;
 }
+
 
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onResetPatient }) => {
   const [engineStatus, setEngineStatus] = useState<{
@@ -83,6 +83,19 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
               </button>
 
               <button
+                onClick={() => setActiveTab('testing-ground')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  activeTab === 'testing-ground'
+                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
+                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                <span>Testing Ground</span>
+              </button>
+
+              <button
+
                 onClick={() => setActiveTab('vignettes')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                   activeTab === 'vignettes'
