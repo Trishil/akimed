@@ -30,6 +30,42 @@ export interface TriageEvaluation {
   redFlags: string[];
 }
 
+export interface DiseaseProfile {
+  id: string;
+  name: string;
+  icd10: string;
+  category: 'Primary' | 'Secondary' | 'Alternative';
+  system: 'infectious' | 'cardiac' | 'pulmonary' | 'gi' | 'neuro' | 'renal' | 'systemic' | 'endocrine' | 'rheum' | 'obgyn' | 'derm' | 'hemonc' | 'other';
+  basePrior: number;
+  keywords: string[];
+  pathophysiology: string;
+  supportingFindings: string[];
+  opposingFindings: string[];
+  bedsideSignsToTest: string[];
+  recommendedWorkup: {
+    initialLabs: string[];
+    confirmatoryTests: string[];
+    imaging?: string[];
+  };
+  clinicalPearls: string;
+}
+
+export interface DiseaseLikelihoodMap {
+  [diseaseId: string]: {
+    lrPos: number;
+    lrNeg: number;
+  };
+}
+
+export interface QuestionDefinition {
+  id: string;
+  text: string;
+  category: 'History' | 'Physical Exam' | 'Symptom Character' | 'Red Flag' | 'Epidemiology';
+  rationale: string;
+  diseaseLikelihoods: DiseaseLikelihoodMap;
+  triggerKeywords?: string[];
+}
+
 export interface DifferentialItem {
   diseaseName: string;
   icd10Code?: string;
