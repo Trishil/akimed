@@ -448,8 +448,8 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
           state = computeAkinatorInferenceStep(patient, hist, hist.length + 1, state.activeHypothesis);
         }
 
-        const topLead = state.differentialRanking[0];
-        const isMatch = topLead?.diseaseName.toLowerCase() === d.name.toLowerCase();
+        const topLead = state.differentialRanking?.[0];
+        const isMatch = topLead ? topLead.diseaseName.toLowerCase() === d.name.toLowerCase() : false;
         const conf = topLead?.likelihood || 0;
 
         return {
@@ -1117,7 +1117,7 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
                 <div>
                   <h3 className="text-base font-black text-zinc-900">Dr. Akinator Inquiry Stream</h3>
                   <span className="text-xs font-bold text-zinc-500">
-                    Turn {arenaHistory.length} • Certainty: {arenaState.activeHypothesis.confidence}%
+                    Turn {arenaHistory.length} • Certainty: {arenaState.activeHypothesis?.confidence ?? 0}%
                   </span>
                 </div>
 
@@ -1165,7 +1165,7 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
               {arenaState.isConcluded && (
                 <div
                   className={`p-4 rounded-2xl border-2 flex items-center justify-between gap-4 ${
-                    arenaState.differentialRanking[0]?.diseaseName.toLowerCase() ===
+                    (arenaState.differentialRanking?.[0]?.diseaseName || '').toLowerCase() ===
                     CLINICAL_DISEASES[arenaTargetId]?.name.toLowerCase()
                       ? 'bg-emerald-50 border-emerald-600 text-emerald-950'
                       : 'bg-amber-50 border-amber-600 text-amber-950'
@@ -1175,8 +1175,8 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
                     <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
                     <div>
                       <h4 className="text-sm font-black">
-                        Diagnosed: {arenaState.differentialRanking[0]?.diseaseName} (
-                        {arenaState.activeHypothesis.confidence}%)
+                        Diagnosed: {arenaState.differentialRanking?.[0]?.diseaseName || 'None'} (
+                        {arenaState.activeHypothesis?.confidence ?? 0}%)
                       </h4>
                       <p className="text-xs">
                         Reached ≥95% certainty in <strong>{arenaHistory.length} questions</strong>{' '}
@@ -1185,7 +1185,7 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
                     </div>
                   </div>
                   <span className="px-3 py-1 bg-white border border-zinc-300 rounded-xl font-black text-xs">
-                    {arenaState.differentialRanking[0]?.diseaseName.toLowerCase() ===
+                    {(arenaState.differentialRanking?.[0]?.diseaseName || '').toLowerCase() ===
                     CLINICAL_DISEASES[arenaTargetId]?.name.toLowerCase()
                       ? 'MATCH 100%'
                       : 'CLOSE DIFFERENTIAL'}
@@ -1256,7 +1256,7 @@ export const TestingGround: React.FC<TestingGroundProps> = ({ onLaunchCase }) =>
               </p>
 
               <div className="space-y-2 mt-2">
-                {arenaState.differentialRanking.slice(0, 7).map((item, idx) => {
+                {(arenaState.differentialRanking || []).slice(0, 7).map((item, idx) => {
                   const isTarget =
                     item.diseaseName.toLowerCase() === CLINICAL_DISEASES[arenaTargetId]?.name.toLowerCase();
 

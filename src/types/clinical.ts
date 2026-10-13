@@ -114,6 +114,7 @@ export interface AkinatorQA {
   question: string;
   answer: 'yes' | 'no' | 'unsure' | 'probably_yes' | 'probably_no';
   clinicalRationale?: string;
+  timestamp?: number;
 }
 
 export interface ActiveHypothesisInfo {

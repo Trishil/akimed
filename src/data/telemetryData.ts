@@ -90,110 +90,341 @@ export interface TelemetryData {
 
 export const DEFAULT_TELEMETRY_DATA: TelemetryData = {
   active_model: {
-    name: "AkiMed 10-Layer Clinical Attention Transformer",
-    version: "2.4.0",
-    weights_path: "/Volumes/Trishil/Akimed_data/models/akimed_clinical_transformer_best.pt",
-    weights_size_mb: 34.48,
+    name: "AkiMed 16-Layer Deep Clinical Attention Transformer (200M Scale)",
+    version: "2.5.0",
+    weights_path: "/Volumes/Trishil/Akimed_data/models/clinical_transformer_100plus_best.pt",
+    weights_size_mb: 812.30,
     device: "Apple Silicon MPS (Metal Performance Shaders)",
-    architecture: "10 Pre-LN Attention Layers (8 tokens x 256d embed_dim, 4 heads)",
-    trained_samples: 600000,
-    val_top1_acc: 99.50,
-    val_top3_acc: 100.0,
-    val_triage_acc: 100.0,
+    architecture: "16 Pre-LN Attention Layers (16 tokens x 1024d embed_dim, 16 heads, 212.9M params)",
+    trained_samples: 155400,
+    val_top1_acc: 98.56,
+    val_top3_acc: 99.82,
+    val_triage_acc: 99.80,
     saved_root_dir: "/Volumes/Trishil/Akimed_data/models"
   },
   checkpoints: [
     {
-      name: "checkpoint_mastery_epoch_1.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_1.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 21:12:30"
-    },
-    {
-      name: "checkpoint_mastery_epoch_2.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_2.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 21:22:42"
-    },
-    {
-      name: "checkpoint_mastery_epoch_3.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_3.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 21:36:18"
-    },
-    {
-      name: "checkpoint_mastery_epoch_4.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_4.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 21:47:20"
-    },
-    {
-      name: "checkpoint_mastery_epoch_5.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_5.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 21:58:05"
-    },
-    {
-      name: "checkpoint_mastery_epoch_6_best.pt",
-      path: "/Volumes/Trishil/Akimed_data/models/checkpoints/checkpoint_mastery_epoch_6.pt",
-      size_mb: 34.48,
-      modified: "2026-10-12 22:09:15"
+      name: "clinical_transformer_100plus_best.pt",
+      path: "/Volumes/Trishil/Akimed_data/models/clinical_transformer_100plus_best.pt",
+      size_mb: 812.30,
+      modified: "2026-10-13 23:05:00"
     }
   ],
   training_history: [
     {
       epoch: 1,
-      train_loss: 1.0078,
-      train_dx_acc: 73.47,
-      val_top1_acc: 99.35,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 624.0
+      train_loss: 4.7143,
+      train_dx_acc: 18.64,
+      val_top1_acc: 51.44,
+      val_top3_acc: 74.41,
+      val_triage_acc: 99.80,
+      elapsed_sec: 438.0
     },
     {
       epoch: 2,
-      train_loss: 0.9773,
-      train_dx_acc: 73.83,
-      val_top1_acc: 99.40,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 612.0
+      train_loss: 3.3331,
+      train_dx_acc: 33.85,
+      val_top1_acc: 58.47,
+      val_top3_acc: 85.86,
+      val_triage_acc: 99.80,
+      elapsed_sec: 235.5
     },
     {
       epoch: 3,
-      train_loss: 0.9643,
-      train_dx_acc: 74.01,
-      val_top1_acc: 99.35,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 882.0
+      train_loss: 2.8456,
+      train_dx_acc: 36.66,
+      val_top1_acc: 66.58,
+      val_top3_acc: 91.98,
+      val_triage_acc: 99.80,
+      elapsed_sec: 208.9
     },
     {
       epoch: 4,
-      train_loss: 0.9460,
-      train_dx_acc: 74.32,
-      val_top1_acc: 99.60,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 660.0
+      train_loss: 2.3217,
+      train_dx_acc: 47.15,
+      val_top1_acc: 76.13,
+      val_top3_acc: 98.29,
+      val_triage_acc: 99.80,
+      elapsed_sec: 192.3
     },
     {
       epoch: 5,
-      train_loss: 0.9381,
-      train_dx_acc: 74.50,
-      val_top1_acc: 99.25,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 642.0
+      train_loss: 2.0557,
+      train_dx_acc: 54.39,
+      val_top1_acc: 80.99,
+      val_top3_acc: 97.84,
+      val_triage_acc: 99.80,
+      elapsed_sec: 155.1
     },
     {
       epoch: 6,
-      train_loss: 0.9330,
-      train_dx_acc: 74.61,
-      val_top1_acc: 99.50,
-      val_top3_acc: 100.0,
-      val_triage_acc: 100.0,
-      elapsed_sec: 672.0
+      train_loss: 1.8417,
+      train_dx_acc: 56.93,
+      val_top1_acc: 88.29,
+      val_top3_acc: 99.37,
+      val_triage_acc: 99.80,
+      elapsed_sec: 199.8
+    },
+    {
+      epoch: 7,
+      train_loss: 1.7895,
+      train_dx_acc: 58.31,
+      val_top1_acc: 89.91,
+      val_top3_acc: 99.46,
+      val_triage_acc: 99.80,
+      elapsed_sec: 182.5
+    },
+    {
+      epoch: 8,
+      train_loss: 1.6721,
+      train_dx_acc: 62.39,
+      val_top1_acc: 89.37,
+      val_top3_acc: 99.28,
+      val_triage_acc: 99.80,
+      elapsed_sec: 188.5
+    },
+    {
+      epoch: 9,
+      train_loss: 1.6066,
+      train_dx_acc: 62.64,
+      val_top1_acc: 91.35,
+      val_top3_acc: 99.01,
+      val_triage_acc: 99.80,
+      elapsed_sec: 184.7
+    },
+    {
+      epoch: 10,
+      train_loss: 1.5515,
+      train_dx_acc: 63.56,
+      val_top1_acc: 93.78,
+      val_top3_acc: 98.83,
+      val_triage_acc: 99.80,
+      elapsed_sec: 182.6
+    },
+    {
+      epoch: 11,
+      train_loss: 1.5077,
+      train_dx_acc: 64.33,
+      val_top1_acc: 92.70,
+      val_top3_acc: 99.55,
+      val_triage_acc: 99.80,
+      elapsed_sec: 208.6
+    },
+    {
+      epoch: 12,
+      train_loss: 1.4545,
+      train_dx_acc: 65.78,
+      val_top1_acc: 90.81,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 221.8
+    },
+    {
+      epoch: 13,
+      train_loss: 1.4212,
+      train_dx_acc: 66.92,
+      val_top1_acc: 92.70,
+      val_top3_acc: 99.64,
+      val_triage_acc: 99.80,
+      elapsed_sec: 361.3
+    },
+    {
+      epoch: 14,
+      train_loss: 1.3558,
+      train_dx_acc: 67.21,
+      val_top1_acc: 95.95,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 301.1
+    },
+    {
+      epoch: 15,
+      train_loss: 1.3717,
+      train_dx_acc: 66.96,
+      val_top1_acc: 94.59,
+      val_top3_acc: 100.00,
+      val_triage_acc: 99.80,
+      elapsed_sec: 163.1
+    },
+    {
+      epoch: 16,
+      train_loss: 1.3154,
+      train_dx_acc: 68.57,
+      val_top1_acc: 95.23,
+      val_top3_acc: 99.73,
+      val_triage_acc: 99.80,
+      elapsed_sec: 541.0
+    },
+    {
+      epoch: 17,
+      train_loss: 1.2884,
+      train_dx_acc: 68.91,
+      val_top1_acc: 96.13,
+      val_top3_acc: 100.00,
+      val_triage_acc: 99.80,
+      elapsed_sec: 265.6
+    },
+    {
+      epoch: 18,
+      train_loss: 1.2600,
+      train_dx_acc: 69.18,
+      val_top1_acc: 96.67,
+      val_top3_acc: 99.73,
+      val_triage_acc: 99.80,
+      elapsed_sec: 400.8
+    },
+    {
+      epoch: 19,
+      train_loss: 1.2246,
+      train_dx_acc: 69.45,
+      val_top1_acc: 96.31,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 650.2
+    },
+    {
+      epoch: 20,
+      train_loss: 1.2154,
+      train_dx_acc: 69.36,
+      val_top1_acc: 96.40,
+      val_top3_acc: 100.00,
+      val_triage_acc: 99.80,
+      elapsed_sec: 396.4
+    },
+    {
+      epoch: 21,
+      train_loss: 1.1490,
+      train_dx_acc: 71.31,
+      val_top1_acc: 95.23,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 309.6
+    },
+    {
+      epoch: 22,
+      train_loss: 1.1527,
+      train_dx_acc: 72.44,
+      val_top1_acc: 96.67,
+      val_top3_acc: 100.00,
+      val_triage_acc: 99.80,
+      elapsed_sec: 339.1
+    },
+    {
+      epoch: 23,
+      train_loss: 1.1371,
+      train_dx_acc: 71.08,
+      val_top1_acc: 97.12,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 273.9
+    },
+    {
+      epoch: 24,
+      train_loss: 1.0658,
+      train_dx_acc: 73.41,
+      val_top1_acc: 97.57,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 257.9
+    },
+    {
+      epoch: 25,
+      train_loss: 1.0734,
+      train_dx_acc: 72.98,
+      val_top1_acc: 96.94,
+      val_top3_acc: 99.73,
+      val_triage_acc: 99.80,
+      elapsed_sec: 262.3
+    },
+    {
+      epoch: 26,
+      train_loss: 1.0481,
+      train_dx_acc: 72.64,
+      val_top1_acc: 97.48,
+      val_top3_acc: 99.73,
+      val_triage_acc: 99.80,
+      elapsed_sec: 310.2
+    },
+    {
+      epoch: 27,
+      train_loss: 1.0853,
+      train_dx_acc: 72.28,
+      val_top1_acc: 98.02,
+      val_top3_acc: 100.00,
+      val_triage_acc: 99.80,
+      elapsed_sec: 284.0
+    },
+    {
+      epoch: 28,
+      train_loss: 1.0400,
+      train_dx_acc: 73.87,
+      val_top1_acc: 97.03,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 293.0
+    },
+    {
+      epoch: 29,
+      train_loss: 1.0240,
+      train_dx_acc: 73.23,
+      val_top1_acc: 97.03,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 308.7
+    },
+    {
+      epoch: 30,
+      train_loss: 1.0208,
+      train_dx_acc: 74.32,
+      val_top1_acc: 98.20,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 301.3
+    },
+    {
+      epoch: 31,
+      train_loss: 0.9951,
+      train_dx_acc: 74.66,
+      val_top1_acc: 98.56,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 254.7
+    },
+    {
+      epoch: 32,
+      train_loss: 1.0047,
+      train_dx_acc: 74.34,
+      val_top1_acc: 97.66,
+      val_top3_acc: 99.64,
+      val_triage_acc: 99.80,
+      elapsed_sec: 257.3
+    },
+    {
+      epoch: 33,
+      train_loss: 1.0224,
+      train_dx_acc: 73.89,
+      val_top1_acc: 98.38,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 240.9
+    },
+    {
+      epoch: 34,
+      train_loss: 1.0003,
+      train_dx_acc: 74.21,
+      val_top1_acc: 98.20,
+      val_top3_acc: 99.91,
+      val_triage_acc: 99.80,
+      elapsed_sec: 306.2
+    },
+    {
+      epoch: 35,
+      train_loss: 0.9893,
+      train_dx_acc: 74.39,
+      val_top1_acc: 98.20,
+      val_top3_acc: 99.82,
+      val_triage_acc: 99.80,
+      elapsed_sec: 283.9
     }
   ],
   adversarial_stress_report: {

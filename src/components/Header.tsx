@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Stethoscope, Brain, Activity, Sparkles, BookOpen, Cpu, RotateCcw, Sliders } from 'lucide-react';
 import { TrainingTelemetryModal } from './TrainingTelemetryModal';
 
