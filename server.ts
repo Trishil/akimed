@@ -13,6 +13,8 @@ import {
 import { computeAkinatorInferenceStep } from './src/utils/clinicalInferenceEngine.ts';
 import { DEFAULT_TELEMETRY_DATA } from './src/data/telemetryData.ts';
 
+import { spawn } from 'child_process';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -35,11 +37,45 @@ const ai = apiKey
   : null;
 
 const LOCAL_ENGINE_URL = process.env.AKIMED_ENGINE_URL || 'http://127.0.0.1:8000';
+let localEngineProcess: any = null;
+
+async function checkAndStartLocalEngine(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+    const r = await fetch(`${LOCAL_ENGINE_URL}/health`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (r.ok) {
+      return true;
+    }
+  } catch {}
+
+  if (localEngineProcess) return false;
+
+  const pythonBin = '/Volumes/Trishil/Akimed_data/venv/bin/python3';
+  const scriptPath = path.join(__dirname, 'scripts', 'akimed_service.py');
+  console.log('🚀 Spawning AkiMed 212.9M Clinical Attention Transformer (MPS GPU) on port 8000...');
+  
+  try {
+    localEngineProcess = spawn(pythonBin, [scriptPath], {
+      cwd: __dirname,
+      stdio: 'inherit',
+    });
+    localEngineProcess.on('exit', (code: number) => {
+      console.log(`[AkiMed Engine] Process exited with code ${code}`);
+      localEngineProcess = null;
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to spawn AkiMed Python engine:', err);
+    return false;
+  }
+}
 
 async function callLocalEngine(endpoint: string, body: any) {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
     const res = await fetch(`${LOCAL_ENGINE_URL}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -51,7 +87,8 @@ async function callLocalEngine(endpoint: string, body: any) {
       return await res.json();
     }
   } catch (e) {
-    // Local engine offline or timed out
+    // Attempt auto-spawn if offline
+    checkAndStartLocalEngine();
   }
   return null;
 }
@@ -636,4 +673,5 @@ if (process.env.NODE_ENV !== 'production') {
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`AkiMed server running on http://0.0.0.0:${PORT}`);
+  checkAndStartLocalEngine();
 });

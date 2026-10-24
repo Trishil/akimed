@@ -45,8 +45,9 @@ export default function App() {
   const [showTelemetryModal, setShowTelemetryModal] = useState<boolean>(false);
 
   // Start Akinator from Patient Profile
-  const handleStartAkinator = async () => {
-    if (!patient.chiefSymptoms.trim()) {
+  const handleStartAkinator = async (customPatient?: PatientProfile) => {
+    const targetPatient = customPatient || patient;
+    if (!targetPatient.chiefSymptoms.trim()) {
       setError('Please provide chief symptoms to start.');
       return;
     }
@@ -75,7 +76,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          patient,
+          patient: targetPatient,
           history: [],
           step: 1,
         }),
@@ -90,7 +91,7 @@ export default function App() {
       setActiveTab('akinator');
     } catch (err) {
       console.warn('Backend API request failed, using client dynamic Bayesian logic:', err);
-      const dynamicStep = computeAkinatorInferenceStep(patient, [], 1);
+      const dynamicStep = computeAkinatorInferenceStep(targetPatient, [], 1);
       setAkinatorState(dynamicStep);
       if (dynamicStep.assessment) {
         setAssessment(dynamicStep.assessment);
@@ -157,8 +158,9 @@ export default function App() {
   };
 
   // Generate Comprehensive Triage & Differential
-  const handleGenerateTriage = async () => {
-    if (!patient.chiefSymptoms.trim()) {
+  const handleGenerateTriage = async (customPatient?: PatientProfile) => {
+    const targetPatient = customPatient || patient;
+    if (!targetPatient.chiefSymptoms.trim()) {
       setError('Please provide chief symptoms to evaluate.');
       return;
     }
@@ -170,7 +172,7 @@ export default function App() {
       const res = await fetch('/api/diagnose', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient }),
+        body: JSON.stringify({ patient: targetPatient }),
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -179,7 +181,7 @@ export default function App() {
       setActiveTab('triage');
     } catch (err) {
       console.warn('Diagnose API failed, using deterministic fallback:', err);
-      const data = generateDeterministicAssessment(patient);
+      const data = generateDeterministicAssessment(targetPatient);
       setAssessment(data);
       setActiveTab('triage');
     } finally {

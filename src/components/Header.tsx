@@ -21,10 +21,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
   const [showTelemetryModal, setShowTelemetryModal] = useState(false);
 
   useEffect(() => {
-    fetch('/api/engine-status')
-      .then(res => res.json())
-      .then(data => setEngineStatus(data))
-      .catch(() => {});
+    const pollStatus = () => {
+      fetch('/api/engine-status')
+        .then(res => res.json())
+        .then(data => setEngineStatus(data))
+        .catch(() => {});
+    };
+    pollStatus();
+    const interval = setInterval(pollStatus, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -46,9 +51,15 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
                     Clinical AI
                   </span>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-950 border border-amber-300 hidden sm:inline-flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                    MPS GPU Active
+                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border hidden sm:inline-flex items-center gap-1.5 ${
+                    engineStatus.activeEngine === 'local_ml'
+                      ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
+                      : 'bg-amber-100 text-amber-950 border-amber-300'
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${
+                      engineStatus.activeEngine === 'local_ml' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-ping'
+                    }`}></span>
+                    {engineStatus.activeEngine === 'local_ml' ? 'MPS GPU Active (212.9M)' : 'Engine Initializing...'}
                   </span>
                 </div>
                 <p className="text-[11px] font-medium text-zinc-500 -mt-0.5">

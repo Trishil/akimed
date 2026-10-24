@@ -100,6 +100,16 @@ export const TriageDifferentialView: React.FC<TriageDifferentialViewProps> = ({
                   {triage.timeToPhysician}
                 </strong>
               </p>
+
+              {assessment.engineTelemetry && (
+                <div className="mt-2.5 inline-flex flex-wrap items-center gap-2 text-[11px] bg-emerald-50 text-emerald-950 border border-emerald-400 rounded-xl px-2.5 py-1 font-mono shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="font-bold">Hardware Accelerated ({assessment.engineTelemetry.hardwareAccelerator || 'MPS GPU'}):</span>
+                  <span>{assessment.engineTelemetry.modelScale || '212.9M Attention Transformer'}</span>
+                  <span className="text-zinc-400">•</span>
+                  <span className="font-bold text-emerald-800">{assessment.engineTelemetry.latencyMs}ms compute latency</span>
+                </div>
+              )}
             </div>
           </div>
 

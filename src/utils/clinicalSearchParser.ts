@@ -403,24 +403,37 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   const parsedMedications: string[] = [];
 
   // -------------------------------------------------------------------------
-  // A. DEMOGRAPHICS PARSING (e.g. "29M", "45 yo female", "32-year-old male pregnant")
+  // A. DEMOGRAPHICS PARSING (e.g. "29M", "45 yo female", "34-year-old male", "female 22")
   // -------------------------------------------------------------------------
-  const ageMatch = lower.match(/\b(\d{1,3})\s*(?:yo|y\/o|year[\s-]old|years[\s-]old|yr[\s-]old)?\s*(male|female|m|f)\b/) ||
-                   lower.match(/\b(male|female)\s*,?\s*(\d{1,3})\b/) ||
-                   lower.match(/\b(\d{1,3})\s*(?:yo|y\/o|years[\s-]old|yr)\b/);
+  let matchedAge: number | undefined;
+  let matchedGender: 'Male' | 'Female' | undefined;
 
-  if (ageMatch) {
-    if (ageMatch[1] && !isNaN(parseInt(ageMatch[1]))) {
-      const parsedAge = parseInt(ageMatch[1]);
-      if (parsedAge >= 0 && parsedAge <= 120) {
-        parsedDemographics.age = parsedAge;
+  const m1 = lower.match(/\b(\d{1,3})[\s-]*(?:yo|y\/o|year[\s-]*old|years[\s-]*old|yr[\s-]*old)?[\s-]*(male|female|m|f)\b/);
+  if (m1) {
+    matchedAge = parseInt(m1[1]);
+    const g = m1[2].toLowerCase();
+    if (g === 'm' || g === 'male') matchedGender = 'Male';
+    if (g === 'f' || g === 'female') matchedGender = 'Female';
+  } else {
+    const m2 = lower.match(/\b(male|female)[\s,]*(?:age[d\s:]*)?(\d{1,3})\b/);
+    if (m2) {
+      const g = m2[1].toLowerCase();
+      if (g === 'male') matchedGender = 'Male';
+      if (g === 'female') matchedGender = 'Female';
+      matchedAge = parseInt(m2[2]);
+    } else {
+      const m3 = lower.match(/\b(\d{1,3})[\s-]*(?:yo|y\/o|years?[\s-]*old|yr)\b/);
+      if (m3) {
+        matchedAge = parseInt(m3[1]);
       }
     }
-    if (ageMatch[2]) {
-      const g = ageMatch[2].toLowerCase();
-      if (g === 'm' || g === 'male') parsedDemographics.gender = 'Male';
-      if (g === 'f' || g === 'female') parsedDemographics.gender = 'Female';
-    }
+  }
+
+  if (matchedAge !== undefined && !isNaN(matchedAge) && matchedAge >= 0 && matchedAge <= 120) {
+    parsedDemographics.age = matchedAge;
+  }
+  if (matchedGender) {
+    parsedDemographics.gender = matchedGender;
   }
 
   if (lower.includes('pregnant') || lower.includes('gestation') || lower.includes('gravida')) {
@@ -435,7 +448,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   const travelKeywords = [
     'kenya', 'africa', 'sub-saharan', 'tanzania', 'uganda', 'ghana', 'nigeria',
     'safari', 'malaria', 'endemic', 'india', 'thailand', 'southeast asia', 'vietnam',
-    'cambodia', 'brazil', 'amazon', 'peru', 'travel', 'trip', 'returned from'
+    'cambodia', 'brazil', 'amazon', 'peru', 'flight', 'international flight', 'travel', 'trip', 'returned from'
   ];
 
   for (const tkw of travelKeywords) {
@@ -445,7 +458,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
       if (travelSentenceMatch) {
         parsedTravel = travelSentenceMatch[0].trim();
       } else {
-        parsedTravel = `Recent travel to ${tkw.toUpperCase()} region`;
+        parsedTravel = `Recent travel / flight history (${tkw.toUpperCase()})`;
       }
       conceptsMap.set('TRAVEL_ENDEMIC', {
         id: 'TRAVEL_ENDEMIC',
@@ -465,7 +478,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   let parsedDuration: string | undefined;
   const durationMatch = lower.match(/\b(?:for|duration|started|onset|since)\s+([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?))\b/) ||
                         lower.match(/\b([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?))\s*(?:ago|duration|history)\b/) ||
-                        lower.match(/\b(sudden onset|gradual onset|cyclical every \d+ hours?)\b/);
+                        lower.match(/\b(acute onset|abrupt onset|began abruptly|abruptly|sudden onset|sudden|gradual onset|cyclical every \d+ hours?)\b/);
 
   if (durationMatch) {
     parsedDuration = durationMatch[1] || durationMatch[0];
@@ -530,20 +543,39 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     }
   }
 
-  // SpO2
-  const spo2Match = lower.match(/(?:spo2|o2|sat|sats)[:\s]*([7-9][0-9]|100)\s*%?\b/);
+  // SpO2 (matches "SpO2: 89%", "Oxygen Saturation (SpO2): 89%", "SpO2 89% on room air")
+  const spo2Match = lower.match(/(?:spo2|oxygen\s*saturation(?:\s*\([a-z0-9]+\))?|o2\s*sat|sats?)[:\s)]*([7-9][0-9]|100)\s*%?\b/);
   if (spo2Match) {
     const spo2Val = parseInt(spo2Match[1]);
     parsedVitals.spo2 = spo2Val;
     if (spo2Val < 94) {
       parsedVitals.clinicalAlerts.push(`Hypoxia (SpO2 ${spo2Val}%)`);
+      conceptsMap.set('VITAL_HYPOXIA', {
+        id: 'VITAL_HYPOXIA',
+        canonicalName: `Hypoxia (SpO2 ${spo2Val}%)`,
+        category: 'Vital Sign',
+        matchedText: spo2Match[0],
+        isShortform: false,
+        isTypoCorrected: false
+      });
     }
   }
 
   // Respiratory Rate
-  const rrMatch = lower.match(/(?:rr|resp|respiratory\s*rate)[:\s]*([8-9]|[1-4][0-9])\s*(?:\/min|bpm)?\b/);
+  const rrMatch = lower.match(/(?:rr|resp|respiratory\s*rate)[:\s)]*([8-9]|[1-4][0-9])\s*(?:\/min|bpm|breaths\/min)?\b/);
   if (rrMatch) {
     parsedVitals.respiratoryRate = parseInt(rrMatch[1]);
+    if (parsedVitals.respiratoryRate >= 22) {
+      parsedVitals.clinicalAlerts.push(`Tachypnea (${parsedVitals.respiratoryRate}/min)`);
+      conceptsMap.set('VITAL_TACHYPNEA', {
+        id: 'VITAL_TACHYPNEA',
+        canonicalName: `Tachypnea (${parsedVitals.respiratoryRate}/min)`,
+        category: 'Vital Sign',
+        matchedText: rrMatch[0],
+        isShortform: false,
+        isTypoCorrected: false
+      });
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -689,34 +721,79 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
 }
 
 /**
- * Updates a PatientProfile with structured entities parsed from free-form clinical search query
+ * Updates a PatientProfile with structured entities parsed from free-form clinical search query.
+ * Provides session isolation so pasting a new clinical case vignette does not merge with previous cases.
  */
 export function applyParsedSearchToPatientProfile(
   prev: PatientProfile,
-  parsed: ClinicalSearchParseResult
+  parsed: ClinicalSearchParseResult,
+  rawInputText?: string
 ): PatientProfile {
+  const text = (rawInputText || prev.chiefSymptoms || '').toLowerCase();
+
+  // Detect if this is a new clinical case/vignette presentation
+  const isCaseVignette = /\b(?:hpi|history of present illness|presents to|chief complaint|physical exam|vital signs|patient presents|vignette)\b/i.test(text);
+  const isDemographicChange = (parsed.parsedDemographics.age !== undefined && parsed.parsedDemographics.age !== prev.age) ||
+    (parsed.parsedDemographics.gender !== undefined && parsed.parsedDemographics.gender !== prev.gender);
+  const isNewEncounter = isCaseVignette || isDemographicChange;
+
+  // Extract physical examination findings if present
+  let extractedExamNotes: string | undefined;
+  if (rawInputText || prev.chiefSymptoms) {
+    const rawToSearch = rawInputText || prev.chiefSymptoms;
+    const examMatch = rawToSearch.match(/\b(?:physical examination findings|physical exam|exam findings|\bpe:?)[\s:]*([\s\S]+)$/i);
+    if (examMatch) {
+      extractedExamNotes = examMatch[1].trim();
+    }
+  }
+
+  // Handle past medical history extraction or reset
+  let updatedPreExisting: string[] = prev.preExistingConditions || [];
+  if (isNewEncounter) {
+    // If a new case vignette is presented, do not bleed previous patient's PMH (e.g. G6PD deficiency)
+    updatedPreExisting = [];
+  }
+
+  // Handle allergies: do not retain previous patient's allergy if this is a new case
+  let updatedAllergies: string[] = prev.allergies || [];
+  if (isNewEncounter) {
+    if (parsed.parsedAllergies.length > 0) {
+      updatedAllergies = parsed.parsedAllergies;
+    } else if (/\b(?:nkda|no known drug allergies|no known allergies|no drug allergies)\b/i.test(text)) {
+      updatedAllergies = ['No Known Drug Allergies (NKDA)'];
+    } else {
+      updatedAllergies = [];
+    }
+  } else if (parsed.parsedAllergies.length > 0) {
+    updatedAllergies = Array.from(new Set([...(prev.allergies || []), ...parsed.parsedAllergies]));
+  }
+
+  // Handle medications
+  let updatedMeds: string[] = prev.currentMedications || [];
+  if (isNewEncounter) {
+    updatedMeds = parsed.parsedMedications.length > 0 ? parsed.parsedMedications : [];
+  } else if (parsed.parsedMedications.length > 0) {
+    updatedMeds = Array.from(new Set([...(prev.currentMedications || []), ...parsed.parsedMedications]));
+  }
+
   return {
     ...prev,
     age: parsed.parsedDemographics.age ?? prev.age,
     gender: parsed.parsedDemographics.gender ?? prev.gender,
     isPregnant: parsed.parsedDemographics.isPregnant ?? prev.isPregnant,
-    travelHistory: parsed.parsedTravel || prev.travelHistory,
-    symptomDuration: parsed.parsedDuration || prev.symptomDuration,
+    travelHistory: parsed.parsedTravel || (isNewEncounter ? '' : prev.travelHistory),
+    symptomDuration: parsed.parsedDuration || (isNewEncounter ? 'Acute onset' : prev.symptomDuration),
+    additionalNotes: extractedExamNotes || (isNewEncounter ? '' : prev.additionalNotes),
     vitalSigns: {
-      ...prev.vitalSigns,
-      bpSystolic: parsed.parsedVitals.bpSystolic ?? prev.vitalSigns?.bpSystolic,
-      bpDiastolic: parsed.parsedVitals.bpDiastolic ?? prev.vitalSigns?.bpDiastolic,
-      heartRate: parsed.parsedVitals.heartRate ?? prev.vitalSigns?.heartRate,
-      respiratoryRate: parsed.parsedVitals.respiratoryRate ?? prev.vitalSigns?.respiratoryRate,
-      spo2: parsed.parsedVitals.spo2 ?? prev.vitalSigns?.spo2,
-      temperatureC: parsed.parsedVitals.temperatureC ?? prev.vitalSigns?.temperatureC,
+      bpSystolic: parsed.parsedVitals.bpSystolic ?? (isNewEncounter ? undefined : prev.vitalSigns?.bpSystolic),
+      bpDiastolic: parsed.parsedVitals.bpDiastolic ?? (isNewEncounter ? undefined : prev.vitalSigns?.bpDiastolic),
+      heartRate: parsed.parsedVitals.heartRate ?? (isNewEncounter ? undefined : prev.vitalSigns?.heartRate),
+      respiratoryRate: parsed.parsedVitals.respiratoryRate ?? (isNewEncounter ? undefined : prev.vitalSigns?.respiratoryRate),
+      spo2: parsed.parsedVitals.spo2 ?? (isNewEncounter ? undefined : prev.vitalSigns?.spo2),
+      temperatureC: parsed.parsedVitals.temperatureC ?? (isNewEncounter ? undefined : prev.vitalSigns?.temperatureC),
     },
-    allergies: parsed.parsedAllergies.length > 0 
-      ? Array.from(new Set([...prev.allergies, ...parsed.parsedAllergies]))
-      : prev.allergies,
-    currentMedications: parsed.parsedMedications.length > 0
-      ? Array.from(new Set([...prev.currentMedications, ...parsed.parsedMedications]))
-      : prev.currentMedications,
-    preExistingConditions: prev.preExistingConditions
+    allergies: updatedAllergies,
+    currentMedications: updatedMeds,
+    preExistingConditions: updatedPreExisting
   };
 }

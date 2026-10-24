@@ -12,6 +12,14 @@ export function formatSoapNote(
     ? `BP: ${patient.vitalSigns.bpSystolic || '?'}/${patient.vitalSigns.bpDiastolic || '?'} mmHg | HR: ${patient.vitalSigns.heartRate || '?'} bpm | RR: ${patient.vitalSigns.respiratoryRate || '?'} /min | SpO2: ${patient.vitalSigns.spo2 || '?'}% | Temp: ${patient.vitalSigns.temperatureC || '?'} °C`
     : 'Not recorded';
 
+  let chiefComplaint = patient.chiefSymptoms;
+  if (chiefComplaint.length > 120) {
+    const ccMatch = chiefComplaint.match(/\b(?:presents to [^.]+ with|presents with|presenting with|complaining of|c\/o|evaluation of|acute onset of)\s+([^.]+)/i);
+    if (ccMatch) {
+      chiefComplaint = ccMatch[1].trim();
+    }
+  }
+
   let lines: string[] = [
     '======================================================================',
     '       AKIMED CLINICAL CASE SUMMARY (MBBS SOAP / SBAR FORMAT)         ',
@@ -19,7 +27,7 @@ export function formatSoapNote(
     '',
     '[S] SUBJECTIVE:',
     `• Patient: ${patient.age}-year-old ${patient.gender}${patient.isPregnant ? ' (PREGNANT)' : ''}`,
-    `• Chief Complaint(s): "${patient.chiefSymptoms}" (Duration: ${patient.symptomDuration || 'Unspecified'})`,
+    `• Chief Complaint(s): "${chiefComplaint}" (Duration: ${patient.symptomDuration || 'Unspecified'})`,
     `• History of Present Illness / Notes: ${patient.additionalNotes || 'None recorded'}`,
     `• Travel Epidemiology: ${patient.travelHistory || 'No recent international travel'}`,
     `• Past Medical History: ${patient.preExistingConditions && patient.preExistingConditions.length > 0 ? patient.preExistingConditions.join(', ') : 'None reported'}`,

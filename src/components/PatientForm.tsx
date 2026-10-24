@@ -20,14 +20,15 @@ import {
   Activity,
   ArrowRight,
   Stethoscope,
-  Info
+  Info,
+  RotateCcw
 } from 'lucide-react';
 
 interface PatientFormProps {
   patient: PatientProfile;
   setPatient: React.Dispatch<React.SetStateAction<PatientProfile>>;
-  onStartAkinator: () => void;
-  onGenerateTriage: () => void;
+  onStartAkinator: (overridePatient?: PatientProfile) => void;
+  onGenerateTriage: (overridePatient?: PatientProfile) => void;
   isLoading: boolean;
 }
 
@@ -94,15 +95,38 @@ export const PatientForm: React.FC<PatientFormProps> = ({
     }));
   };
 
+  const handleResetForm = () => {
+    setPatient({
+      age: 30,
+      gender: 'Male',
+      chiefSymptoms: '',
+      symptomDuration: 'Acute onset',
+      preExistingConditions: [],
+      currentMedications: [],
+      allergies: [],
+      travelHistory: '',
+      additionalNotes: '',
+      vitalSigns: {
+        bpSystolic: 120,
+        bpDiastolic: 80,
+        heartRate: 75,
+        respiratoryRate: 16,
+        spo2: 98,
+        temperatureC: 37.0
+      }
+    });
+  };
+
   const handleLaunchAkinator = () => {
-    // Ensure all parsed properties are merged prior to starting
-    setPatient((prev) => applyParsedSearchToPatientProfile(prev, parseResult));
-    onStartAkinator();
+    const updated = applyParsedSearchToPatientProfile(patient, parseResult, patient.chiefSymptoms);
+    setPatient(updated);
+    onStartAkinator(updated);
   };
 
   const handleLaunchTriage = () => {
-    setPatient((prev) => applyParsedSearchToPatientProfile(prev, parseResult));
-    onGenerateTriage();
+    const updated = applyParsedSearchToPatientProfile(patient, parseResult, patient.chiefSymptoms);
+    setPatient(updated);
+    onGenerateTriage(updated);
   };
 
   return (
@@ -128,8 +152,16 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           </div>
         </div>
 
-        {/* Quick Example Scenarios */}
+        {/* Quick Example Scenarios & Reset */}
         <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={handleResetForm}
+            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 transition-colors cursor-pointer flex items-center gap-1 mr-1"
+          >
+            <RotateCcw className="w-3 h-3 text-rose-600" />
+            <span>Reset / New Case</span>
+          </button>
           <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden md:inline">
             Quick Cases:
           </span>

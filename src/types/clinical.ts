@@ -90,12 +90,22 @@ export interface AllergyWarning {
   details: string;
 }
 
+export interface EngineTelemetry {
+  activeEngine: string;
+  device: string;
+  parametersCount?: number;
+  latencyMs?: number;
+  hardwareAccelerator?: string;
+  modelScale?: string;
+}
+
 export interface DiagnosticAssessment {
   triage: TriageEvaluation;
   topDiagnoses: DifferentialItem[];
   allergyAndMedicationAlerts: AllergyWarning[];
   immediateActionPlan: string[];
   differentialSummary: string;
+  engineTelemetry?: EngineTelemetry;
 }
 
 export interface AkinatorQuestion {
