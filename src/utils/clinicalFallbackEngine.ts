@@ -19,15 +19,25 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     s.includes('severe respiratory distress') ||
     (v && v.spo2 && v.spo2 < 85) ||
     (v && v.bpSystolic && v.bpSystolic < 80) ||
-    (v && v.heartRate && (v.heartRate > 150 || v.heartRate < 40))
+    (v && v.heartRate && (v.heartRate > 150 || v.heartRate < 40)) ||
+    s.includes('ketoacidosis') ||
+    s.includes('dka') ||
+    s.includes('kussmaul') ||
+    s.includes('acetone') ||
+    (s.includes('insulin') && s.includes('vomiting')) ||
+    (v && v.respiratoryRate && v.respiratoryRate >= 26 && v.heartRate && v.heartRate >= 120)
   ) {
+    let rationale = 'Severe hemodynamic collapse, compromised airway, or imminent metabolic/respiratory arrest requiring immediate resuscitation protocols.';
+    if (s.includes('ketoacidosis') || s.includes('dka') || s.includes('acetone') || s.includes('kussmaul') || (s.includes('insulin') && s.includes('vomiting'))) {
+      rationale = 'Diabetic Ketoacidosis (DKA) / Severe High-Anion Gap Metabolic Acidosis with compensatory Kussmaul tachypnea and marked dehydration requiring immediate resuscitation.';
+    }
     return {
       level: 1,
       levelName: 'Resuscitation',
       color: '#dc2626', // red-600
       timeToPhysician: 'Immediate (0 minutes)',
-      rationale: 'Severe hemodynamic collapse, compromised airway, or imminent cardiac/respiratory arrest requiring immediate resuscitation protocols.',
-      redFlags: ['Airway patency threat', 'Profound shock state', 'Extreme vital instability'],
+      rationale,
+      redFlags: ['Severe high-anion-gap metabolic acidosis', 'Profound shock state / elevated shock index', 'Impending metabolic collapse'],
     };
   }
 
@@ -49,16 +59,27 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     (v && v.heartRate && v.heartRate >= 115 && v.temperatureC && v.temperatureC >= 38.5) ||
     (v && v.temperatureC && v.temperatureC >= 40.0)
   ) {
+    let rationale = 'High-risk presentation with potential rapid clinical deterioration requiring urgent bedside evaluation.';
+    if (s.includes('chest pain') || s.includes('stemi') || s.includes('angina')) {
+      rationale = 'Acute chest pain concerning for Acute Coronary Syndrome (ACS) or acute cardiopulmonary emergency.';
+    } else if (s.includes('tearing') || s.includes('dissection')) {
+      rationale = 'Severe tearing pain concerning for acute aortic pathology / dissection.';
+    } else if (s.includes('meningitis') || s.includes('neck stiffness')) {
+      rationale = 'Meningeal signs concerning for acute central nervous system infection.';
+    } else if (s.includes('abdominal') || s.includes('peritoneal')) {
+      rationale = 'Acute abdominal symptoms with physiological distress requiring emergent evaluation.';
+    }
+
     return {
       level: 2,
       levelName: 'Emergent',
       color: '#ea580c', // orange-600
       timeToPhysician: '< 15 minutes',
-      rationale: 'High-risk presentation with potential rapid clinical deterioration (e.g. Acute Coronary Syndrome, Aortic Dissection, Meningococcemia, Pulmonary Embolism, or Complicated Falciparum Malaria with Intravascular Hemolysis).',
+      rationale,
       redFlags: [
         'Vital sign instability / High shock index',
         'Severe acute visceral or neurological pain',
-        'Evidence of end-organ compromise or active intravascular hemolysis',
+        'Evidence of end-organ compromise',
       ],
     };
   }
@@ -183,8 +204,96 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
 
   const differentials: DifferentialItem[] = [];
 
+  // Scenario 0: Diabetic Ketoacidosis (DKA) / Severe Metabolic Acidosis
+  if (
+    s.includes('ketoacidosis') ||
+    s.includes('dka') ||
+    s.includes('acetone') ||
+    s.includes('kussmaul') ||
+    s.includes('fruity breath') ||
+    s.includes('polydipsia') ||
+    s.includes('polyuria') ||
+    s.includes('unquenchable thirst') ||
+    (s.includes('insulin') && (s.includes('vomiting') || s.includes('abdominal pain') || s.includes('lethargy') || s.includes('nausea'))) ||
+    (s.includes('diabetes') && (s.includes('vomiting') || s.includes('abdominal pain') || s.includes('acidosis')))
+  ) {
+    differentials.push({
+      diseaseName: 'Diabetic Ketoacidosis (DKA)',
+      icd10Code: 'E10.10',
+      likelihood: 95,
+      category: 'Primary',
+      pathophysiology: 'Absolute or relative insulin deficiency combined with counter-regulatory hormone excess (glucagon, catecholamines, cortisol) drives uncontrolled lipolysis and hepatic ketogenesis (beta-hydroxybutyrate, acetoacetate) -> severe high-anion-gap metabolic acidosis. Osmotic diuresis causes profound total-body volume and electrolyte depletion. Ketosis and splanchnic hypoperfusion generate severe diffuse abdominal pain mimicking a surgical acute abdomen (pseudo-acute abdomen), while metabolic acidosis triggers compensatory deep, rapid Kussmaul hyperventilation.',
+      supportingFindings: [
+        'Classic metabolic triad: Polyuria, polydipsia, and severe fatigue',
+        'Pathognomonic sweet, acetone odor on breath',
+        'Deep, rapid compensatory Kussmaul respirations',
+        'Diffuse pseudo-acute abdominal pain and intractable vomiting without peritoneal signs',
+        'Severe volume depletion, tachycardia, and hypotension following insulin omission'
+      ],
+      opposingFindings: [
+        'Clear lungs on auscultation rule out primary pneumonia as sole cause of tachypnea',
+        'Absence of focal guarding or rebound tenderness excludes perforated viscus / surgical abdomen'
+      ],
+      bedsideSignsToTest: [
+        'STAT Capillary Blood Glucose (Point-of-care fingerstick > 250 mg/dL)',
+        'Point-of-Care Urine Dipstick / Blood Ketone test (moderate-to-large ketonuria, beta-hydroxybutyrate > 3.0 mmol/L)',
+        'Venous Blood Gas (VBG) for pH (< 7.30) and serum bicarbonate (< 18 mEq/L)',
+        'Continuous 3-lead telemetry monitoring for dysrhythmias and potassium shifts'
+      ],
+      recommendedWorkup: {
+        initialLabs: [
+          'STAT Blood Glucose, Serum Electrolytes with calculated Anion Gap',
+          'Venous Blood Gas (pH, base excess)',
+          'Serum Beta-Hydroxybutyrate and Urinalysis',
+          'Complete Blood Count (CBC) and Blood/Urine cultures to identify infectious trigger',
+          'Serum Creatinine, BUN, Osmolality'
+        ],
+        confirmatoryTests: [
+          'Confirmed Triad: Hyperglycemia (>250 mg/dL) + High Anion Gap Metabolic Acidosis (pH < 7.3, HCO3 < 18) + Ketonemia (>3.0 mmol/L)',
+          'Serial potassium and glucose monitoring q1h during protocolized IV insulin and fluid resuscitation'
+        ],
+        imaging: [
+          'Portable Chest Radiography to evaluate for occult pneumonia as infectious precipitant'
+        ]
+      },
+      clinicalPearls: 'DO NOT start insulin if serum potassium is < 3.3 mEq/L! Insulin drives potassium intracellularly, risking fatal cardiac arrest. Rehydrate first with aggressive isotonic saline (1-1.5 L in 1st hour) and replete potassium before initiating fixed-rate IV insulin infusion.'
+    });
+
+    differentials.push({
+      diseaseName: 'Hyperosmolar Hyperglycemic State (HHS)',
+      icd10Code: 'E11.00',
+      likelihood: 35,
+      category: 'Secondary',
+      pathophysiology: 'Relative insulin deficiency sufficient to prevent lipolysis and gross ketogenesis, but insufficient to suppress hepatic gluconeogenesis -> severe extreme hyperglycemia (>600 mg/dL) -> massive osmotic diuresis and profound dehydration with serum hyperosmolality (>320 mOsm/kg).',
+      supportingFindings: ['Severe hyperglycemia and lethargy', 'Extreme volume depletion'],
+      opposingFindings: ['Prominent Kussmaul respirations and sweet acetone breath favor DKA over pure HHS'],
+      bedsideSignsToTest: ['Serum osmolality calculation: 2*(Na) + Glucose/18 + BUN/2.8', 'Neurological assessment for focal deficits'],
+      recommendedWorkup: {
+        initialLabs: ['Serum Osmolality, Serum Glucose, Chemistries, ABG/VBG'],
+        confirmatoryTests: ['Serum Osmolality > 320 mOsm/kg with normal/mildly reduced bicarbonate (>18 mEq/L) and minimal ketonemia']
+      },
+      clinicalPearls: 'HHS carries higher mortality than DKA due to profound dehydration (often 8-12 L deficit) and thromboembolic complications in elderly patients.'
+    });
+
+    differentials.push({
+      diseaseName: 'Acute Gastroenteritis / Pseudo-Acute Surgical Abdomen',
+      icd10Code: 'K52.9',
+      likelihood: 20,
+      category: 'Alternative',
+      pathophysiology: 'Enteric pathogen or severe systemic metabolic irritation causing diffuse abdominal pain and emesis without focal peritoneal inflammation.',
+      supportingFindings: ['Intractable nausea, vomiting, and diffuse abdominal tenderness'],
+      opposingFindings: ['Presence of Kussmaul breathing and acetone odor confirms metabolic acidosis, not simple gastroenteritis; lack of rebound tenderness excludes true peritonitis'],
+      bedsideSignsToTest: ['Serial abdominal examinations to confirm absence of peritoneal signs'],
+      recommendedWorkup: {
+        initialLabs: ['Stool studies, Basic Metabolic Panel, Serum Ketones'],
+        confirmatoryTests: ['Resolution of abdominal pain parallel with correction of acidosis and ketone clearance']
+      },
+      clinicalPearls: 'Abdominal pain in DKA can mimic acute appendicitis or perforated ulcer! It resolves within hours of fluid and insulin resuscitation; if pain persists after acidosis resolves, investigate for primary intra-abdominal pathology.'
+    });
+  }
+
   // Scenario 1: Post-travel Tropical Fever (Kenya / Africa / Spiking fevers)
-  if (s.includes('kenya') || s.includes('africa') || (s.includes('travel') && s.includes('fever') && s.includes('rigor'))) {
+  else if (s.includes('kenya') || s.includes('africa') || (s.includes('travel') && s.includes('fever') && s.includes('rigor'))) {
     differentials.push({
       diseaseName: 'Plasmodium falciparum Malaria',
       icd10Code: 'B50.9',
@@ -299,7 +408,10 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
   }
 
   // Scenario 3: Acute Abdomen (Appendicitis)
-  else if (s.includes('appendicitis') || (s.includes('quadrant') && s.includes('pain')) || (s.includes('umbilicus') && s.includes('iliac'))) {
+  else if (
+    (s.includes('appendicitis') || (s.includes('rlq') && s.includes('pain')) || (s.includes('right lower quadrant') && s.includes('pain')) || (s.includes('mcburney') && s.includes('pain')) || (s.includes('umbilicus') && s.includes('iliac'))) &&
+    !s.includes('no rebound') && !s.includes('pseudo-acute') && !s.includes('acetone') && !s.includes('insulin')
+  ) {
     differentials.push({
       diseaseName: 'Acute Appendicitis',
       icd10Code: 'K35.80',

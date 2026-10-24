@@ -13,11 +13,19 @@ export function formatSoapNote(
     : 'Not recorded';
 
   let chiefComplaint = patient.chiefSymptoms;
-  if (chiefComplaint.length > 120) {
-    const ccMatch = chiefComplaint.match(/\b(?:presents to [^.]+ with|presents with|presenting with|complaining of|c\/o|evaluation of|acute onset of)\s+([^.]+)/i);
+  if (chiefComplaint.length > 100) {
+    const ccMatch = chiefComplaint.match(/\b(?:presents to [^.]+ with|presents with|presenting with|complaining of|c\/o|evaluation of|acute onset of)\s+([^.\n]+)/i);
     if (ccMatch) {
       chiefComplaint = ccMatch[1].trim();
     }
+  }
+
+  let hpiText = patient.additionalNotes || 'None recorded';
+  let peText = '';
+  if (patient.additionalNotes && patient.additionalNotes.includes('Physical Exam:')) {
+    const parts = patient.additionalNotes.split('Physical Exam:');
+    hpiText = parts[0].trim() || 'None recorded';
+    peText = parts[1].trim();
   }
 
   let lines: string[] = [
@@ -28,7 +36,7 @@ export function formatSoapNote(
     '[S] SUBJECTIVE:',
     `• Patient: ${patient.age}-year-old ${patient.gender}${patient.isPregnant ? ' (PREGNANT)' : ''}`,
     `• Chief Complaint(s): "${chiefComplaint}" (Duration: ${patient.symptomDuration || 'Unspecified'})`,
-    `• History of Present Illness / Notes: ${patient.additionalNotes || 'None recorded'}`,
+    `• History of Present Illness: ${hpiText}`,
     `• Travel Epidemiology: ${patient.travelHistory || 'No recent international travel'}`,
     `• Past Medical History: ${patient.preExistingConditions && patient.preExistingConditions.length > 0 ? patient.preExistingConditions.join(', ') : 'None reported'}`,
     `• Current Medications: ${patient.currentMedications && patient.currentMedications.length > 0 ? patient.currentMedications.join(', ') : 'None'}`,
@@ -36,6 +44,7 @@ export function formatSoapNote(
     '',
     '[O] OBJECTIVE:',
     `• Vital Signs: ${vitalsText}`,
+    ...(peText ? [`• Physical Examination Findings: ${peText}`] : []),
     `• Bedside Signs to Elicit: ${topD?.bedsideSignsToTest ? topD.bedsideSignsToTest.join(' • ') : 'Standard system examination'}`,
     '',
     '[A] ASSESSMENT & TRIAGE:',

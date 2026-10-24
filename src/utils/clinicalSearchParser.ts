@@ -489,10 +489,15 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   // -------------------------------------------------------------------------
   // D. OBJECTIVE VITALS EXTRACTION (Temp, HR, BP, SpO2, RR)
   // -------------------------------------------------------------------------
+  // Pre-clean LaTeX math syntax e.g. "$\text{SpO}_2$" or "$SpO_2$"
+  const cleanForVitals = lower
+    .replace(/\\?\$\s*\\text\{[^}]+\}_?[0-9]*\s*\\?\$|\$[^$]+\$/gi, ' spo2 ')
+    .replace(/\s+/g, ' ');
+
   // Temperature
-  const tempMatch = lower.match(/(?:temp|t|temperature)[:\s]*([34][0-9](?:\.[0-9])?)\s*(?:c|°c)?\b/) ||
-                    lower.match(/\b([34][0-9]\.[0-9])\s*(?:c|°c)\b/) ||
-                    lower.match(/(?:temp|temperature)[:\s]*(10[0-5](?:\.[0-9])?)\s*(?:f|°f)?\b/);
+  const tempMatch = cleanForVitals.match(/(?:temp|t|temperature)[:\s]*([34][0-9](?:\.[0-9])?)\s*(?:c|°c)?\b/) ||
+                    cleanForVitals.match(/\b([34][0-9]\.[0-9])\s*(?:c|°c)\b/) ||
+                    cleanForVitals.match(/(?:temp|temperature)[:\s]*(10[0-5](?:\.[0-9])?)\s*(?:f|°f)?\b/);
   if (tempMatch) {
     let tVal = parseFloat(tempMatch[1]);
     if (tVal > 90) {
@@ -514,7 +519,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   }
 
   // Heart Rate
-  const hrMatch = lower.match(/(?:hr|heart\s*rate|pulse)[:\s]*([4-9][0-9]|1[0-9]{2}|2[0-9]{2})\s*(?:bpm)?\b/);
+  const hrMatch = cleanForVitals.match(/(?:hr|heart\s*rate|pulse)[:\s]*([4-9][0-9]|1[0-9]{2}|2[0-9]{2})\s*(?:bpm)?\b/);
   if (hrMatch) {
     const hrVal = parseInt(hrMatch[1]);
     parsedVitals.heartRate = hrVal;
@@ -532,7 +537,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   }
 
   // Blood Pressure
-  const bpMatch = lower.match(/(?:bp|blood\s*pressure)[:\s]*([7-9][0-9]|1[0-9]{2}|2[0-9]{2})\s*[\/x]\s*([4-9][0-9]|1[0-3][0-9])\b/);
+  const bpMatch = cleanForVitals.match(/(?:bp|blood\s*pressure)[:\s]*([7-9][0-9]|1[0-9]{2}|2[0-9]{2})\s*[\/x]\s*([4-9][0-9]|1[0-3][0-9])\b/);
   if (bpMatch) {
     parsedVitals.bpSystolic = parseInt(bpMatch[1]);
     parsedVitals.bpDiastolic = parseInt(bpMatch[2]);
@@ -543,8 +548,9 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     }
   }
 
-  // SpO2 (matches "SpO2: 89%", "Oxygen Saturation (SpO2): 89%", "SpO2 89% on room air")
-  const spo2Match = lower.match(/(?:spo2|oxygen\s*saturation(?:\s*\([a-z0-9]+\))?|o2\s*sat|sats?)[:\s)]*([7-9][0-9]|100)\s*%?\b/);
+  // SpO2 (matches "SpO2: 89%", "Oxygen Saturation (SpO2): 89%", LaTeX ($\text{SpO}_2$): 98%)
+  const spo2Match = cleanForVitals.match(/(?:spo2|oxygen\s*saturation|o2\s*sat|sats?)[:\s)]*([7-9][0-9]|100)\s*%?\b/) ||
+                    cleanForVitals.match(/\b([7-9][0-9]|100)\s*%\s*(?:on\s+room\s+air|o2|saturation|spo2)\b/);
   if (spo2Match) {
     const spo2Val = parseInt(spo2Match[1]);
     parsedVitals.spo2 = spo2Val;
@@ -562,7 +568,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   }
 
   // Respiratory Rate
-  const rrMatch = lower.match(/(?:rr|resp|respiratory\s*rate)[:\s)]*([8-9]|[1-4][0-9])\s*(?:\/min|bpm|breaths\/min)?\b/);
+  const rrMatch = cleanForVitals.match(/(?:rr|resp|respiratory\s*rate)[:\s)]*([8-9]|[1-4][0-9])\s*(?:\/min|bpm|breaths\/min)?\b/);
   if (rrMatch) {
     parsedVitals.respiratoryRate = parseInt(rrMatch[1]);
     if (parsedVitals.respiratoryRate >= 22) {
@@ -708,6 +714,22 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     parsedMedications.push('Did not take malaria chemoprophylaxis');
   }
 
+  const MEDICATION_RULES = [
+    { pattern: /\b(?:basal\s+insulin|insulin\s+(?:glargine|detemir|degludec|aspart|lispro|regular)|insulin)\b/i, med: "Basal insulin (non-compliance noted)", pmh: "Type 1 Diabetes Mellitus (Insulin-dependent)" },
+    { pattern: /\b(?:metformin|glucophage|glipizide|glimepiride|jardiance|empagliflozin|ozempic|semaglutide)\b/i, med: "Oral Antidiabetic agent", pmh: "Type 2 Diabetes Mellitus" },
+    { pattern: /\b(?:lisinopril|amlodipine|losartan|hydrochlorothiazide|hctz|atenolol|metoprolol)\b/i, med: "Antihypertensive agent", pmh: "Essential Hypertension" },
+    { pattern: /\b(?:albuterol|salbutamol|fluticasone|budesonide|symbicort|advair)\b/i, med: "Inhaled respiratory therapy", pmh: "Bronchial Asthma / COPD" },
+    { pattern: /\b(?:levothyroxine|synthroid|eltroxin)\b/i, med: "Levothyroxine", pmh: "Hypothyroidism" },
+    { pattern: /\b(?:warfarin|coumadin|apixaban|eliquis|rivaroxaban|xarelto|dabigatran)\b/i, med: "Oral Anticoagulant", pmh: "Thromboembolic risk / Atrial Fibrillation" },
+    { pattern: /\b(?:aspirin|clopidogrel|plavix)\b/i, med: "Antiplatelet therapy", pmh: "Coronary Artery Disease / Vascular Risk" }
+  ];
+
+  for (const rule of MEDICATION_RULES) {
+    if (rule.pattern.test(lower)) {
+      parsedMedications.push(rule.med);
+    }
+  }
+
   return {
     concepts: Array.from(conceptsMap.values()),
     parsedDemographics,
@@ -719,6 +741,16 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     appliedShortforms
   };
 }
+
+const MEDICATION_RULES_REF = [
+  { pattern: /\b(?:basal\s+insulin|insulin\s+(?:glargine|detemir|degludec|aspart|lispro|regular)|insulin)\b/i, med: "Basal insulin (non-compliance noted)", pmh: "Type 1 Diabetes Mellitus (Insulin-dependent)" },
+  { pattern: /\b(?:metformin|glucophage|glipizide|glimepiride|jardiance|empagliflozin|ozempic|semaglutide)\b/i, med: "Oral Antidiabetic agent", pmh: "Type 2 Diabetes Mellitus" },
+  { pattern: /\b(?:lisinopril|amlodipine|losartan|hydrochlorothiazide|hctz|atenolol|metoprolol)\b/i, med: "Antihypertensive agent", pmh: "Essential Hypertension" },
+  { pattern: /\b(?:albuterol|salbutamol|fluticasone|budesonide|symbicort|advair)\b/i, med: "Inhaled respiratory therapy", pmh: "Bronchial Asthma / COPD" },
+  { pattern: /\b(?:levothyroxine|synthroid|eltroxin)\b/i, med: "Levothyroxine", pmh: "Hypothyroidism" },
+  { pattern: /\b(?:warfarin|coumadin|apixaban|eliquis|rivaroxaban|xarelto|dabigatran)\b/i, med: "Oral Anticoagulant", pmh: "Thromboembolic risk / Atrial Fibrillation" },
+  { pattern: /\b(?:aspirin|clopidogrel|plavix)\b/i, med: "Antiplatelet therapy", pmh: "Coronary Artery Disease / Vascular Risk" }
+];
 
 /**
  * Updates a PatientProfile with structured entities parsed from free-form clinical search query.
@@ -737,11 +769,25 @@ export function applyParsedSearchToPatientProfile(
     (parsed.parsedDemographics.gender !== undefined && parsed.parsedDemographics.gender !== prev.gender);
   const isNewEncounter = isCaseVignette || isDemographicChange;
 
-  // Extract physical examination findings if present
+  // Extract structured sections from clinical vignettes
+  let extractedChiefComplaint: string | undefined;
+  let extractedHpi: string | undefined;
   let extractedExamNotes: string | undefined;
+
   if (rawInputText || prev.chiefSymptoms) {
     const rawToSearch = rawInputText || prev.chiefSymptoms;
-    const examMatch = rawToSearch.match(/\b(?:physical examination findings|physical exam|exam findings|\bpe:?)[\s:]*([\s\S]+)$/i);
+
+    const ccMatch = rawToSearch.match(/\b(?:complaining of|c\/o|evaluation of|presents? with|presenting with|presents to [^.]+ with)\s+([^.\n]+)/i);
+    if (ccMatch) {
+      extractedChiefComplaint = ccMatch[1].trim();
+    }
+
+    const hpiMatch = rawToSearch.match(/(?:history of present illness|hpi)[\s:)]*([\s\S]+?)(?=(?:vital signs|\bvitals\b|physical exam|pe:))/i);
+    if (hpiMatch) {
+      extractedHpi = hpiMatch[1].trim();
+    }
+
+    const examMatch = rawToSearch.match(/(?:physical examination findings|physical exam|exam findings|\bpe:?)[\s:]*([\s\S]+)$/i);
     if (examMatch) {
       extractedExamNotes = examMatch[1].trim();
     }
@@ -750,11 +796,29 @@ export function applyParsedSearchToPatientProfile(
   // Handle past medical history extraction or reset
   let updatedPreExisting: string[] = prev.preExistingConditions || [];
   if (isNewEncounter) {
-    // If a new case vignette is presented, do not bleed previous patient's PMH (e.g. G6PD deficiency)
     updatedPreExisting = [];
   }
 
-  // Handle allergies: do not retain previous patient's allergy if this is a new case
+  // Infer PMH from medications or explicit conditions
+  for (const rule of MEDICATION_RULES_REF) {
+    if (rule.pattern.test(text) && rule.pmh && !updatedPreExisting.includes(rule.pmh)) {
+      updatedPreExisting.push(rule.pmh);
+    }
+  }
+  if (/\b(?:type 1 diabetes|t1d|insulin-dependent diabetes)\b/i.test(text) && !updatedPreExisting.includes('Type 1 Diabetes Mellitus')) {
+    updatedPreExisting.push('Type 1 Diabetes Mellitus');
+  }
+  if (/\b(?:type 2 diabetes|t2d|non-insulin dependent diabetes)\b/i.test(text) && !updatedPreExisting.includes('Type 2 Diabetes Mellitus')) {
+    updatedPreExisting.push('Type 2 Diabetes Mellitus');
+  }
+  if (/\b(?:hypertension|htn|high blood pressure)\b/i.test(text) && !updatedPreExisting.includes('Hypertension')) {
+    updatedPreExisting.push('Hypertension');
+  }
+  if (/\b(?:asthma)\b/i.test(text) && !updatedPreExisting.includes('Asthma')) {
+    updatedPreExisting.push('Asthma');
+  }
+
+  // Handle allergies
   let updatedAllergies: string[] = prev.allergies || [];
   if (isNewEncounter) {
     if (parsed.parsedAllergies.length > 0) {
@@ -776,14 +840,25 @@ export function applyParsedSearchToPatientProfile(
     updatedMeds = Array.from(new Set([...(prev.currentMedications || []), ...parsed.parsedMedications]));
   }
 
+  // Synthesize clean clinical notes
+  let synthesizedNotes = '';
+  if (extractedHpi && extractedExamNotes) {
+    synthesizedNotes = `${extractedHpi}\n\nPhysical Exam: ${extractedExamNotes}`;
+  } else if (extractedExamNotes) {
+    synthesizedNotes = extractedExamNotes;
+  } else if (extractedHpi) {
+    synthesizedNotes = extractedHpi;
+  }
+
   return {
     ...prev,
+    chiefSymptoms: (isNewEncounter && extractedChiefComplaint) ? extractedChiefComplaint : prev.chiefSymptoms,
     age: parsed.parsedDemographics.age ?? prev.age,
     gender: parsed.parsedDemographics.gender ?? prev.gender,
     isPregnant: parsed.parsedDemographics.isPregnant ?? prev.isPregnant,
     travelHistory: parsed.parsedTravel || (isNewEncounter ? '' : prev.travelHistory),
     symptomDuration: parsed.parsedDuration || (isNewEncounter ? 'Acute onset' : prev.symptomDuration),
-    additionalNotes: extractedExamNotes || (isNewEncounter ? '' : prev.additionalNotes),
+    additionalNotes: synthesizedNotes || (isNewEncounter ? '' : prev.additionalNotes),
     vitalSigns: {
       bpSystolic: parsed.parsedVitals.bpSystolic ?? (isNewEncounter ? undefined : prev.vitalSigns?.bpSystolic),
       bpDiastolic: parsed.parsedVitals.bpDiastolic ?? (isNewEncounter ? undefined : prev.vitalSigns?.bpDiastolic),

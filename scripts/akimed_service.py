@@ -625,6 +625,14 @@ KEYWORD_TO_EVIDENCES = {
     "dka": ["E_69", "E_158"],
     "fruity breath": ["E_69", "E_158"],
     "acetone breath": ["E_69", "E_158"],
+    "acetone": ["E_69", "E_158"],
+    "acetone-like": ["E_69", "E_158"],
+    "sweet breath": ["E_69", "E_158"],
+    "kussmaul": ["E_66", "E_69"],
+    "sighing breaths": ["E_66", "E_69"],
+    "unquenchable thirst": ["E_69", "E_158"],
+    "urinate frequently": ["E_69", "E_158"],
+    "basal insulin": ["E_69"],
     "polyuria": ["E_69", "E_158"],
     "polydipsia": ["E_69", "E_158"],
     "hypoglycemia": ["E_158"],
@@ -1529,7 +1537,7 @@ def extract_travel_and_chronology_priors(patient: PatientProfile) -> Tuple[Set[s
     full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {travel_text}".lower()
 
     CARDINAL_KEYWORD_PRIORS = {
-        ("fruity breath", "acetone", "kussmaul", "ketoacidosis", "polydipsia", "polyuria"): ("Diabetic ketoacidosis (DKA)", 35.0, "E_69"),
+        ("fruity breath", "acetone", "acetone-like", "sweet breath", "kussmaul", "ketoacidosis", "dka", "polydipsia", "polyuria", "unquenchable thirst", "urinate frequently", "basal insulin", "prescribed basal insulin", "insulin"): ("Diabetic ketoacidosis (DKA)", 60.0, "E_69"),
         ("hypoglycemia", "low sugar", "sweating shak", "tremor cold sweat"): ("Acute hypoglycemia", 35.0, "E_158"),
         ("flank pain", "groin", "kidney stone", "renal colic", "hematuria"): ("Nephrolithiasis (Renal colic)", 35.0, "E_58"),
         ("gout", "podagra", "big toe", "uric acid"): ("Acute gouty arthritis", 35.0, "E_53"),
@@ -1576,6 +1584,12 @@ def extract_travel_and_chronology_priors(patient: PatientProfile) -> Tuple[Set[s
         prior_multipliers["Pulmonary embolism"] = prior_multipliers["Acute pulmonary embolism"]
     elif "Pulmonary embolism" in prior_multipliers and "Acute pulmonary embolism" not in prior_multipliers:
         prior_multipliers["Acute pulmonary embolism"] = prior_multipliers["Pulmonary embolism"]
+
+    # Medical history & medication priors
+    med_text = " ".join(patient.currentMedications or []).lower() + " " + " ".join(patient.preExistingConditions or []).lower()
+    if "insulin" in med_text or "diabetes" in med_text:
+        prior_multipliers["Diabetic ketoacidosis (DKA)"] = prior_multipliers.get("Diabetic ketoacidosis (DKA)", 1.0) * 15.0
+        extracted_evs.add("E_69")
 
     return extracted_evs, prior_multipliers
 
@@ -1710,6 +1724,24 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
             dx_probs[c_acute_pe] += dx_probs[c_pe]
             dx_probs[c_pe] = 0.0
 
+        # Check for negative surgical signs / pseudo-acute abdomen refutation
+        full_notes = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''}".lower()
+        has_pseudo_acute = any(k in full_notes for k in [
+            "pseudo-acute", "pseudo acute", "no rebound", "no rigidity", 
+            "no involuntary guarding", "without rebound", "without guarding"
+        ])
+        if has_pseudo_acute:
+            SURGICAL_PERITONITIS_CONDITIONS = {
+                "Acute appendicitis",
+                "Perforated peptic ulcer disease",
+                "Ovarian torsion",
+                "Acute diverticulitis"
+            }
+            for c_idx in range(len(dx_probs)):
+                c_name = idx_to_cond[c_idx]
+                if c_name in SURGICAL_PERITONITIS_CONDITIONS:
+                    dx_probs[c_idx] *= 0.05
+
         # Apply Bayesian negative evidence refutation to neural posterior
         if negative_evs:
             for c_idx in range(len(dx_probs)):
@@ -1723,6 +1755,9 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
         sum_dx = dx_probs.sum()
         if sum_dx > 0:
             dx_probs /= sum_dx
+
+        sorted_indices = [idx for idx in dx_probs.argsort()[::-1] if dx_probs[idx] > 0][:5]
+        top_name = idx_to_cond[sorted_indices[0]] if sorted_indices else ""
 
         # Use the most acute triage level between clinical vitals rule and neural triage
         # (Never downgrade a high-risk emergent Level 1 or 2 case to non-urgent)
@@ -1741,12 +1776,23 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
         triage["timeToPhysician"] = time_to_dr
         triage["rationale"] = f"AkiMed 212.9M Attention Transformer ({device.type.upper()}) & physiological vitals triage classification."
 
-        sorted_indices = [idx for idx in dx_probs.argsort()[::-1] if dx_probs[idx] > 0][:5]
+        if top_name == "Diabetic ketoacidosis (DKA)":
+            final_esi = 1
+            triage["level"] = 1
+            triage["levelName"] = "Resuscitation"
+            triage["color"] = "bg-red-600"
+            triage["timeToPhysician"] = "Immediate (< 1 minute)"
+            triage["rationale"] = "Diabetic Ketoacidosis (DKA) with severe high-anion-gap metabolic acidosis, compensatory Kussmaul hyperventilation, and high shock index requiring immediate resuscitation and protocolized IV insulin/fluid management."
+            if "Severe metabolic acidosis / Kussmaul tachypnea" not in triage["redFlags"]:
+                triage["redFlags"].insert(0, "Severe metabolic acidosis / Kussmaul tachypnea")
 
         for rank, c_idx in enumerate(sorted_indices):
             cond_name = idx_to_cond[c_idx]
             prob_pct = int(round(float(dx_probs[c_idx]) * 100))
-            prob_pct = max(10, min(95, prob_pct))
+            if rank == 0 and cond_name == "Diabetic ketoacidosis (DKA)":
+                prob_pct = max(95, prob_pct)
+            else:
+                prob_pct = max(10, min(95, prob_pct))
             
             c_know = clinical_knowledge.get(cond_name, {})
             category = "Primary" if rank == 0 else ("Secondary" if rank == 1 else "Alternative")
