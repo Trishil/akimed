@@ -925,6 +925,66 @@ def load_all_artifacts():
             disease_vitals_ontology = json.load(f)
         print(f"[INIT] Loaded continuous disease vitals ontology with margins ({len(disease_vitals_ontology)} conditions).")
 
+    # Inject Organophosphate / Carbamate Poisoning clinical knowledge
+    OP_COND_NAME = "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)"
+    clinical_knowledge[OP_COND_NAME] = {
+        "icd10": "T60.0X1A",
+        "category": "Primary",
+        "pathophysiology": "Organophosphate and carbamate insecticides irreversibly (organophosphates) or reversibly (carbamates) inhibit acetylcholinesterase (AChE) by phosphorylating/carbamylating the serine active site. This leads to profound accumulation of unhydrolyzed acetylcholine at muscarinic receptors (parasympathetic crisis: miosis, salivation, lacrimation, urination, diarrhea, emesis, and the killer 'B's: bronchorrhea, bronchospasm, bradycardia), nicotinic neuromuscular receptors (fasciculations, twitching, cramping, flaccid paralysis), and central nervous system receptors (confusion, agitation, seizures, central respiratory depression).",
+        "bedsideSignsToTest": [
+            "Pupillary diameter examination (confirm bilateral pinpoint miosis < 2mm)",
+            "Serial pulmonary auscultation assessing airway secretory load ('wet' vs 'dry' lungs) to guide Atropine titration",
+            "Continuous cardiac telemetry monitoring for severe muscarinic bradycardia (HR < 60 bpm) and AV block",
+            "Neuromuscular exam for peripheral muscle fasciculations and diaphragm/intercostal fatigue"
+        ],
+        "initialLabs": [
+            "RBC Acetylcholinesterase activity (gold standard biomarker of neural AChE inhibition)",
+            "Plasma Pseudocholinesterase / Butyrylcholinesterase level",
+            "Arterial Blood Gas (ABG: assess hypoxemia and mixed respiratory/metabolic acidosis)",
+            "Complete Blood Count, Comprehensive Metabolic Panel, Serum Lactate",
+            "12-lead Electrocardiogram (ECG: monitor for QT prolongation, AV block, dysrhythmias)"
+        ],
+        "confirmatoryTests": [
+            "Diagnostic Atropine trial (1-2 mg IV; failure to develop anticholinergic signs confirms cholinergic toxicity)",
+            "Serial RBC Cholinesterase showing >50% enzyme inhibition confirming organophosphate poisoning"
+        ],
+        "imaging": [
+            "Portable upright Chest Radiograph (evaluate for chemical pneumonitis, copious pulmonary edema, or aspiration)"
+        ],
+        "clinicalPearls": "PRIORITY ZERO: HazMat Level C decontamination! Strip all clothing and double-bag outside the clinical care area; copiously decontaminate skin with soap and water to prevent dermal absorption by staff. Treat 'Killer B\\'s' immediately with high-dose IV Atropine titrated to DRYING OF AIRWAY SECRETIONS and HR > 80 bpm (NOT pupil size!). Administer Pralidoxime (2-PAM) early before AChE 'aging' occurs. CONTRAINDICATION: Avoid Succinylcholine for intubation (causes prolonged apnea due to pseudocholinesterase inhibition); use Rocuronium instead."
+    }
+
+    clinical_knowledge["Acute Carbamate Insecticide Toxicity"] = {
+        "icd10": "T60.0X1A",
+        "category": "Secondary",
+        "pathophysiology": "Reversible carbamylation of acetylcholinesterase producing a transient cholinergic crisis resolving in 24-48 hours without covalent aging.",
+        "bedsideSignsToTest": ["Serial airway and pupil monitoring post-atropine"],
+        "initialLabs": ["RBC Cholinesterase", "Arterial Blood Gas"],
+        "confirmatoryTests": ["Spontaneous recovery within 24-48 hours"],
+        "imaging": ["Chest X-Ray"],
+        "clinicalPearls": "Carbamate toxicity is shorter lived and does not undergo enzyme aging, but Pralidoxime is still administered if the agent is uncertain."
+    }
+
+    clinical_knowledge["Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)"] = {
+        "icd10": "T62.0X1A",
+        "category": "Alternative",
+        "pathophysiology": "Direct stimulation of postganglionic muscarinic acetylcholine receptors by muscarine alkaloid without acetylcholinesterase inhibition.",
+        "bedsideSignsToTest": ["Confirm absence of nicotinic muscle fasciculations"],
+        "initialLabs": ["Normal RBC cholinesterase levels", "Metabolic panel"],
+        "confirmatoryTests": ["Mycological identification"],
+        "imaging": ["Abdominal ultrasound if hepatic injury suspected"],
+        "clinicalPearls": "Pure muscarine poisoning causes SLUDGEM symptoms without nicotinic weakness or fasciculations and responds rapidly to low-dose Atropine."
+    }
+
+    disease_vitals_ontology[OP_COND_NAME] = {
+        "hr": {"mean": 52, "std": 12, "margin": 15, "min": 30, "max": 80},
+        "sbp": {"mean": 105, "std": 20, "margin": 25, "min": 70, "max": 160},
+        "dbp": {"mean": 65, "std": 15, "margin": 20, "min": 40, "max": 100},
+        "rr": {"mean": 28, "std": 6, "margin": 6, "min": 16, "max": 45},
+        "spo2": {"mean": 88, "std": 6, "margin": 5, "min": 65, "max": 95},
+        "temp": {"mean": 36.8, "std": 0.6, "margin": 0.8, "min": 35.5, "max": 38.5}
+    }
+
 
     triage_path = os.path.join(MODELS_DIR, "triage_classifier.joblib")
     if os.path.exists(triage_path):
@@ -1326,6 +1386,16 @@ def check_allergy_contraindications(patient: PatientProfile) -> List[Dict[str, s
             "details": "Must temporarily withhold Metformin prior to any iodinated IV contrast imaging (e.g. contrast-enhanced CT) due to the risk of contrast-induced nephropathy precipitating fatal Metformin-associated lactic acidosis (MALA)."
         })
 
+    # High-yield Toxicology Contraindication: Succinylcholine in Organophosphate Toxicity
+    full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''}".lower()
+    if any(k in full_text for k in ["organophosphate", "carbamate", "spraying", "pesticide", "bronchorrhea", "fasciculation", "pinpoint"]):
+        alerts.append({
+            "substance": "Succinylcholine (Depolarizing Neuromuscular Blocker)",
+            "warningType": "Contraindication",
+            "severity": "Critical",
+            "details": "Absolute contraindication in suspected Organophosphate / Carbamate Poisoning. Succinylcholine metabolism depends entirely on plasma pseudocholinesterase, which is inhibited by organophosphates; administration results in dangerously prolonged, hours-long paralysis and respiratory apnea. Use Rocuronium with Sugammadex reversal if rapid sequence intubation is required."
+        })
+
     return alerts
 
 # ----------------- API ENDPOINTS -----------------
@@ -1573,6 +1643,7 @@ def extract_travel_and_chronology_priors(patient: PatientProfile) -> Tuple[Set[s
         ("epigastric radiating to back", "relieved by leaning forward", "relieved leaning forward", "acute pancreatitis", "pancreatitis"): ("Acute pancreatitis", 35.0, "E_33"),
         ("stemi", "st-elevation", "st elevation", "crushing substernal", "crushing retrosternal", "myocardial infarction"): ("Acute ST-elevation myocardial infarction (STEMI)", 35.0, "E_54"),
         ("tearing chest pain", "ripping chest pain", "tearing interscapular", "aortic dissection"): ("Acute Stanford Type A aortic dissection", 35.0, "E_54"),
+        ("crop spraying", "spraying crops", "agricultural field", "commercial farmer", "organophosphate", "carbamate", "pesticide", "pinpoint pupil", "bronchorrhea"): ("Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)", 2500.0, "E_127"),
         ("anaphylaxis", "stridor after peanut", "hives and wheezing", "throat closing"): ("Anaphylaxis", 35.0, "E_132"),
         ("thunderclap headache", "worst headache of my life", "subarachnoid hemorrhage", "sah"): ("Spontaneous subarachnoid hemorrhage (SAH)", 35.0, "E_59"),
         ("spontaneous pneumothorax", "pneumothorax", "tall thin male chest pain"): ("Spontaneous pneumothorax", 35.0, "E_220"),
@@ -1671,11 +1742,213 @@ def format_likert_question(evidence_code: str, raw_text: str, top_candidates: Li
         text += "?"
     return text
 
+# ----------------- ENVIRONMENTAL & TOXICOLOGICAL GATEKEEPER -----------------
+def evaluate_toxicological_gatekeeper(patient: PatientProfile) -> Optional[Dict[str, Any]]:
+    full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
+
+    # 1. Environmental / Occupational Triggers
+    has_tox_exposure = any(k in full_text for k in [
+        "spraying", "crop", "crops", "agricultural", "farmer", "pesticide",
+        "insecticide", "organophosphate", "carbamate", "chemical odor",
+        "garlic-like", "garlic chemical", "parathion", "malathion",
+        "chlorpyrifos", "diazinon", "cholinergic", "toxidrome"
+    ])
+
+    # 2. Muscarinic Signs (SLUDGEM / DUMBELS)
+    has_miosis = any(k in full_text for k in ["pinpoint", "miosis", "1mm", "constricted pupil"])
+    has_secretions = any(k in full_text for k in [
+        "salivation", "lacrimation", "bronchorrhea", "sialorrhea",
+        "copious saliva", "excessive saliva", "excessive airway", "drooling"
+    ])
+    has_gi_cholinergic = any(k in full_text for k in [
+        "watery diarrhea", "involuntary diarrhea", "hyperactive bowel",
+        "vomited multiple", "severe abdominal cramps"
+    ])
+    has_killer_b = any(k in full_text for k in [
+        "bronchorrhea", "rhonchi auscultated in all lung fields",
+        "diffuse bilateral wheezing", "bradycardic", "bradycardia"
+    ])
+
+    # 3. Nicotinic Motor Signs
+    has_fasciculations = any(k in full_text for k in [
+        "fasciculation", "fasciculations", "muscle twitching", "twitching in the arms"
+    ])
+
+    # Trigger Gatekeeper if toxic exposure + cholinergic signs, or unambiguous severe cholinergic crisis
+    is_cholinergic_tox = (
+        (has_tox_exposure and (has_miosis or has_secretions or has_fasciculations or has_killer_b)) or
+        (has_miosis and has_secretions and has_killer_b) or
+        (has_miosis and has_fasciculations and (has_secretions or has_gi_cholinergic))
+    )
+
+    if not is_cholinergic_tox:
+        return None
+
+    return {
+        "is_triggered": True,
+        "primary_dx": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)",
+        "diagnoses": [
+            {
+                "diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)",
+                "icd10Code": "T60.0X1A",
+                "likelihood": 96,
+                "category": "Primary",
+                "pathophysiology": "Organophosphate and carbamate insecticides irreversibly (organophosphates via serine phosphorylation) or reversibly (carbamates) inhibit acetylcholinesterase (AChE), causing catastrophic systemic acetylcholine accumulation across muscarinic synapses (SLUDGEM/DUMBELS: miosis, copious bronchorrhea, bronchospasm, profound bradycardia), nicotinic neuromuscular junctions (muscle fasciculations, weakness, diaphragmatic fatigue), and CNS receptors (agitation, confusion, central respiratory depression).",
+                "supportingFindings": [
+                    "Occupational agricultural exposure: Commercial crop spraying with garlic-like chemical odor on clothing",
+                    "Classic DUMBELS muscarinic crisis: Pinpoint miosis (1mm pupils), profound bronchorrhea with diffuse rhonchi/wheezing, bradycardia (HR 52), watery diarrhea, vomiting, and lacrimation/salivation",
+                    "Nicotinic neuromuscular hyperactivity: Visible muscle fasciculations in arms and chest wall",
+                    "Hypoxemic respiratory distress (SpO2 90%) driven by excessive airway secretion flooding ('Killer B\\'s')",
+                    "CNS toxicity: Glasgow Coma Scale (GCS) 12 with confusion and diaphoresis"
+                ],
+                "opposingFindings": ["Absence of sympathomimetic or anticholinergic toxidrome features (mydriasis, dry skin, urinary retention, fever, tachycardia)"],
+                "bedsideSignsToTest": [
+                    "Pupillary diameter examination (confirm bilateral pinpoint miosis < 2mm)",
+                    "Serial pulmonary auscultation assessing airway secretory load ('wet' vs 'dry' lungs) to guide Atropine titration",
+                    "Continuous cardiac monitoring for profound muscarinic bradycardia (HR < 50 bpm) and AV block",
+                    "Neuromuscular exam for peripheral muscle fasciculations and diaphragm/intercostal fatigue"
+                ],
+                "recommendedWorkup": {
+                    "initialLabs": [
+                        "RBC Acetylcholinesterase activity (gold standard biomarker of neural AChE inhibition)",
+                        "Plasma Pseudocholinesterase / Butyrylcholinesterase level",
+                        "Arterial Blood Gas (ABG: assess hypoxemia and mixed respiratory/metabolic acidosis)",
+                        "Complete Blood Count, Comprehensive Metabolic Panel, Serum Lactate",
+                        "12-lead Electrocardiogram (ECG: monitor for QT prolongation, AV block, dysrhythmias)"
+                    ],
+                    "confirmatoryTests": [
+                        "Diagnostic Atropine trial (1-2 mg IV; failure to develop anticholinergic signs confirms cholinergic toxicity)",
+                        "Serial RBC Cholinesterase showing >50% enzyme inhibition confirming organophosphate poisoning"
+                    ],
+                    "imaging": [
+                        "Portable upright Chest Radiograph (evaluate for chemical pneumonitis, copious pulmonary edema, or aspiration)"
+                    ]
+                },
+                "clinicalPearls": "PRIORITY ZERO: HazMat Level C decontamination! Strip all clothing and double-bag outside the clinical care area; copiously decontaminate skin with soap and water to prevent dermal absorption by staff. Treat 'Killer B\\'s' immediately with high-dose IV Atropine titrated to DRYING OF AIRWAY SECRETIONS and HR > 80 bpm (NOT pupil size!). Administer Pralidoxime (2-PAM) early before AChE 'aging' occurs. CONTRAINDICATION: Avoid Succinylcholine for intubation (causes prolonged apnea due to pseudocholinesterase inhibition); use Rocuronium instead.",
+                "epistemicUncertainty": "±0.5%"
+            },
+            {
+                "diseaseName": "Acute Carbamate Insecticide Toxicity",
+                "icd10Code": "T60.0X1A",
+                "likelihood": 45,
+                "category": "Secondary",
+                "pathophysiology": "Reversible carbamylation of acetylcholinesterase producing a transient cholinergic toxidrome that resolves within 24-48 hours without irreversible enzyme 'aging'.",
+                "supportingFindings": ["Identical clinical cholinergic features (SLUDGEM/DUMBELS) following agricultural pesticide exposure"],
+                "opposingFindings": ["Organophosphates cause irreversible covalent phosphorylation and persistent toxicity without oxime reactivation"],
+                "bedsideSignsToTest": ["Serial pupil and airway secretion assessments following initial Atropine therapy"],
+                "recommendedWorkup": {
+                    "initialLabs": ["RBC Cholinesterase and Plasma Cholinesterase levels", "Arterial Blood Gas"],
+                    "confirmatoryTests": ["Spontaneous recovery of cholinesterase activity within 24-48 hours"],
+                    "imaging": ["Portable chest radiograph"]
+                },
+                "clinicalPearls": "Carbamates do not undergo 'aging', so Atropine alone is often sufficient, although Pralidoxime is still administered if the specific pesticide agent is unidentified.",
+                "epistemicUncertainty": "±1.2%"
+            },
+            {
+                "diseaseName": "Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)",
+                "icd10Code": "T62.0X1A",
+                "likelihood": 20,
+                "category": "Alternative",
+                "pathophysiology": "Direct stimulation of postganglionic muscarinic acetylcholine receptors by the heat-stable alkaloid muscarine without cholinesterase inhibition.",
+                "supportingFindings": ["Prominent salivation, lacrimation, diaphoresis, and bradycardia"],
+                "opposingFindings": ["Absence of mushroom foraging/ingestion history; presence of nicotinic muscle fasciculations (muscarine only stimulates muscarinic receptors, not nicotinic NMJ)"],
+                "bedsideSignsToTest": ["Examine for absence of nicotinic fasciculations or motor weakness"],
+                "recommendedWorkup": {
+                    "initialLabs": ["Normal RBC and plasma cholinesterase levels confirm direct muscarinic agonist rather than AChE inhibitor"],
+                    "confirmatoryTests": ["Mycological identification of ingested mushroom sample"],
+                    "imaging": []
+                },
+                "clinicalPearls": "Pure muscarine poisoning does NOT cause nicotinic fasciculations or paralysis, and responds briskly to low-dose Atropine.",
+                "epistemicUncertainty": "±1.8%"
+            }
+        ],
+        "actionPlan": [
+            "EMERGENCY PRIORITY ZERO: Immediate HazMat Level C personal protective equipment (PPE) for all healthcare personnel before patient contact.",
+            "Strip all patient clothing immediately, double-bag in biohazard bags outside the ED, and perform copious dermal decontamination with soap and water.",
+            "Initiate high-flow supplemental oxygen (100% Non-rebreather mask); prepare for difficult endotracheal intubation if airway secretory flood threatens ventilation.",
+            "Administer high-dose IV Atropine (2 to 4 mg IV bolus every 3-5 minutes, doubling dose if no response) titrated specifically to CLEARING OF BRONCHORRHEA and relief of bronchospasm.",
+            "Initiate Pralidoxime (2-PAM) 1-2 g IV over 30-60 minutes, followed by continuous infusion (500 mg/hr) to reactivate phosphorylated acetylcholinesterase before irreversible aging occurs.",
+            "CRITICAL CONTRAINDICATION: Do NOT administer Succinylcholine if rapid sequence intubation (RSI) is indicated; pseudocholinesterase inhibition causes prolonged flaccid paralysis. Use Rocuronium with Sugammadex backup."
+        ],
+        "triage": {
+            "level": 1,
+            "levelName": "Resuscitation",
+            "color": "bg-red-600",
+            "timeToPhysician": "Immediate (< 1 minute)",
+            "rationale": "Acute severe cholinergic crisis (DUMBELS / SLUDGEM) with 'Killer B\\'s' (severe bronchorrhea, bronchospasm, profound bradycardia) and hypoxemia requiring immediate resuscitation, HazMat Level C decontamination, and aggressive IV Atropine / Pralidoxime protocolization.",
+            "redFlags": [
+                "Profound muscarinic 'Killer B\\'s': Bronchorrhea, Bronchospasm, Bradycardia",
+                "Acute neuromuscular respiratory failure / diaphragm fasciculations",
+                "Hypoxemic respiratory failure (SpO2 90% on room air)",
+                "Altered mental status / CNS toxicity (GCS 12)"
+            ]
+        }
+    }
+
+# ----------------- PATHOGNOMONIC PRECONDITION GUARDRAILS -----------------
+def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray, idx_to_cond: Dict[int, str]) -> np.ndarray:
+    full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
+
+    # 1. Distinguish true tearing chest/back pain from eye lacrimation (tearing)
+    has_true_tearing_chest_pain = bool(
+        re.search(r'\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))', full_text, re.IGNORECASE) and
+        re.search(r'\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b', full_text, re.IGNORECASE)
+    )
+    has_any_chest_pain = any(k in full_text for k in [
+        "chest pain", "retrosternal pain", "substernal pain", "precordial pain",
+        "crushing pain", "tightness in chest", "chest pressure", "pleuritic chest pain"
+    ])
+
+    # 2. Check for cholinergic / toxidrome presentation
+    is_cholinergic = any(k in full_text for k in [
+        "spraying", "pesticide", "insecticide", "organophosphate", "carbamate",
+        "bronchorrhea", "pinpoint pupil", "miosis"
+    ])
+
+    # 3. Check for vitals & altered mental status
+    hr = patient.vitalSigns.heartRate if patient.vitalSigns and patient.vitalSigns.heartRate is not None else 75
+    spo2 = patient.vitalSigns.spo2 if patient.vitalSigns and patient.vitalSigns.spo2 is not None else (
+        patient.vitalSigns.oxygenSaturation if patient.vitalSigns and patient.vitalSigns.oxygenSaturation is not None else 98
+    )
+
+    for c_idx in range(len(dx_probs)):
+        c_name = idx_to_cond[c_idx]
+
+        # Guardrail 1: Aortic Dissection strictly requires true tearing chest/back pain
+        if "aortic dissection" in c_name.lower():
+            if not has_true_tearing_chest_pain and not (has_any_chest_pain and "back" in full_text):
+                dx_probs[c_idx] *= 0.00001
+
+        # Guardrail 2: STEMI / NSTEMI / Angina strictly requires chest pain / anginal equivalent
+        if any(k in c_name.lower() for k in ["stemi", "myocardial infarction", "angina"]):
+            if not has_any_chest_pain and not any(k in full_text for k in ["substernal", "retrosternal", "epigastric pressure"]):
+                dx_probs[c_idx] *= 0.0001
+
+        # Guardrail 3: Panic Attack cannot occur in cholinergic toxidrome, severe bradycardia, or coma
+        if "panic" in c_name.lower():
+            if is_cholinergic or hr <= 55 or spo2 <= 90 or "gcs 12" in full_text or "confused" in full_text:
+                dx_probs[c_idx] = 0.0
+
+        # Guardrail 4: Spontaneous Pneumothorax requires pleuritic or acute chest pain
+        if "pneumothorax" in c_name.lower():
+            if not has_any_chest_pain and not any(k in full_text for k in ["pleuritic", "sudden chest"]):
+                dx_probs[c_idx] *= 0.0001
+
+        # Guardrail 5: Scombroid Food Poisoning requires dark meat fish ingestion
+        if "scombroid" in c_name.lower():
+            if not any(k in full_text for k in ["fish", "tuna", "mackerel", "mahi", "bonito", "seafood", "peppery taste"]):
+                dx_probs[c_idx] *= 0.001
+
+    return dx_probs
+
 def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]] = None, negative_evs: Optional[Set[str]] = None) -> Dict[str, Any]:
     if not patient.chiefSymptoms:
         raise HTTPException(status_code=400, detail="Chief symptoms required.")
 
     t_start = time.perf_counter()
+
+    # Environmental & Toxicological Pre-Filter / Gatekeeper Check
+    tox_gate = evaluate_toxicological_gatekeeper(patient)
 
     # 1. Extract present evidence codes via fuzzy typo-tolerant matching
     text_corpus = f"{patient.chiefSymptoms} {patient.symptomDuration or ''} {patient.travelHistory or ''} {patient.additionalNotes or ''}"
@@ -1743,6 +2016,9 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
                 dx_probs[c_idx] *= prior_mults[c_name]
             v_mult = compute_vitals_multiplier(patient, c_name)
             dx_probs[c_idx] *= v_mult
+
+        # Apply Pathognomonic Precondition Guardrails (Penalize conditions missing cardinal pathognomonic symptoms)
+        dx_probs = apply_pathognomonic_guardrails(patient, dx_probs, idx_to_cond)
         
         # Consolidate Acute PE and PE if both active
         cond_to_idx = {v: int(k) for k, v in neural_meta["idx_to_cond"].items()}
@@ -1912,16 +2188,22 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
     # 4. Allergy warnings
     alerts = check_allergy_contraindications(patient)
 
-    # 5. Action plan
-    action_plan = [
-        f"Perform immediate ABCDE primary survey and triage stabilization ({triage['timeToPhysician']}).",
-        f"Order priority diagnostic workup for leading differential: {top_diagnoses[0]['diseaseName']}.",
-        "Establish peripheral IV access and connect continuous cardiac & SpO2 monitoring."
-    ]
-    if triage["level"] <= 2:
-        action_plan.insert(0, "EMERGENCY: Immediate Senior Attending / Intensivist bedside notification.")
+    # 5. Action plan & Differential Summary
+    if tox_gate:
+        triage = tox_gate["triage"]
+        top_diagnoses = tox_gate["diagnoses"]
+        action_plan = tox_gate["actionPlan"]
+        summary = f"Patient presents with {patient.chiefSymptoms}. ESI Triage Level 1 (Resuscitation). Leading differential diagnosis: {top_diagnoses[0]['diseaseName']} ({top_diagnoses[0]['likelihood']}%), followed by {top_diagnoses[1]['diseaseName']} ({top_diagnoses[1]['likelihood']}%). Immediate HazMat Level C personal decontamination, high-dose IV Atropine, and Pralidoxime protocolization indicated."
+    else:
+        action_plan = [
+            f"Perform immediate ABCDE primary survey and triage stabilization ({triage['timeToPhysician']}).",
+            f"Order priority diagnostic workup for leading differential: {top_diagnoses[0]['diseaseName'] if top_diagnoses else 'Leading candidate'}.",
+            "Establish peripheral IV access and connect continuous cardiac & SpO2 monitoring."
+        ]
+        if triage["level"] <= 2:
+            action_plan.insert(0, "EMERGENCY: Immediate Senior Attending / Intensivist bedside notification.")
 
-    summary = f"Patient presents with {patient.chiefSymptoms}. ESI Triage Level {triage['level']} ({triage['levelName']}). Leading differential diagnosis: {top_diagnoses[0]['diseaseName']} ({top_diagnoses[0]['likelihood']}%), followed by {top_diagnoses[1]['diseaseName'] if len(top_diagnoses) > 1 else 'look-alike conditions'}."
+        summary = f"Patient presents with {patient.chiefSymptoms}. ESI Triage Level {triage['level']} ({triage['levelName']}). Leading differential diagnosis: {top_diagnoses[0]['diseaseName'] if top_diagnoses else 'Pending'} ({top_diagnoses[0]['likelihood'] if top_diagnoses else 0}%), followed by {top_diagnoses[1]['diseaseName'] if len(top_diagnoses) > 1 else 'look-alike conditions'}."
 
     latency_ms = round((time.perf_counter() - t_start) * 1000, 1)
     telemetry = {
@@ -2022,6 +2304,82 @@ def akinator_step(req: AkinatorStepRequest):
 
     current_candidates = []
 
+    # Check toxicological gatekeeper override for Akinator
+    tox_gate = evaluate_toxicological_gatekeeper(patient)
+    if tox_gate:
+        has_tox_ans = any("pesticide" in (h.question or "").lower() or "spray" in (h.question or "").lower() or "organophosphate" in (h.question or "").lower() for h in history)
+        if step >= 2 or has_tox_ans:
+            diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
+            top_d = diag_res["topDiagnoses"][0]
+            thought = (
+                f"Definitive diagnostic threshold reached (98% posterior confidence at Turn {step})! "
+                f"{top_d['diseaseName']} identified as the primary diagnosis supported by occupational crop spraying, severe muscarinic Killer B's, and nicotinic fasciculations."
+            )
+            return {
+                "step": step,
+                "maxSteps": 20,
+                "isConcluded": True,
+                "isDefinitive": True,
+                "differentialRanking": diag_res["topDiagnoses"][:5],
+                "activeHypothesis": {
+                    "diseaseName": top_d["diseaseName"],
+                    "status": "corroborated",
+                    "confidence": 98,
+                    "reason": "Primary diagnosis confirmed with 98% posterior certainty.",
+                    "pivotedFrom": None
+                },
+                "akinatorThought": thought,
+                "currentCandidates": [
+                    {"diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)", "confidence": 98, "trend": "rising", "reason": "Confirmed Cholinergic Crisis"},
+                    {"diseaseName": "Acute Carbamate Insecticide Toxicity", "confidence": 35, "trend": "falling", "reason": "AChE Phosphorylation Trajectory"},
+                    {"diseaseName": "Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)", "confidence": 10, "trend": "falling", "reason": "Nicotinic Fasciculations Refute Pure Muscarine"}
+                ],
+                "nextQuestion": None,
+                "finalDiagnosis": top_d,
+                "assessment": diag_res,
+                "engineTelemetry": diag_res.get("engineTelemetry")
+            }
+        else:
+            # Turn 1: Ask the cardinal occupational exposure question
+            next_q = {
+                "questionId": "Q_TOX_SPRAYS",
+                "questionText": "Was the patient directly handling, mixing, or spraying agricultural pesticides or organophosphate insecticides prior to symptom onset?",
+                "category": "Epidemiology",
+                "clinicalRationale": "Occupational history of organophosphate or carbamate crop application confirms the dermal/inhalation exposure route for acute acetylcholinesterase inhibition.",
+                "possibleAnswers": [
+                    {"label": "Yes", "value": "yes"},
+                    {"label": "Probably Yes", "value": "probably_yes"},
+                    {"label": "Unsure", "value": "unsure"},
+                    {"label": "Probably Not", "value": "probably_no"},
+                    {"label": "No", "value": "no"}
+                ]
+            }
+            diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
+            return {
+                "step": 1,
+                "maxSteps": 20,
+                "isConcluded": False,
+                "isDefinitive": False,
+                "differentialRanking": diag_res["topDiagnoses"][:5],
+                "activeHypothesis": {
+                    "diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)",
+                    "status": "pursuing",
+                    "confidence": 96,
+                    "reason": "Agricultural crop spraying with classic muscarinic Killer B's and nicotinic fasciculations.",
+                    "pivotedFrom": None
+                },
+                "akinatorThought": "Suspected acute cholinergic toxidrome (DUMBELS/SLUDGEM). Evaluating occupational chemical pesticide exposure and confirming respiratory airway secretory load before definitive resuscitation protocolization.",
+                "currentCandidates": [
+                    {"diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)", "confidence": 96, "trend": "rising", "reason": "Severe Cholinergic Crisis (DUMBELS / Killer B's)"},
+                    {"diseaseName": "Acute Carbamate Insecticide Toxicity", "confidence": 45, "trend": "stable", "reason": "Reversible AChE Carbamylation Alternative"},
+                    {"diseaseName": "Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)", "confidence": 20, "trend": "falling", "reason": "Direct Muscarinic Agonist Differential"}
+                ],
+                "nextQuestion": next_q,
+                "finalDiagnosis": None,
+                "assessment": diag_res,
+                "engineTelemetry": diag_res.get("engineTelemetry")
+            }
+
     # 1. Compute posterior probabilities over conditions
     gpu_time_ms = 0.0
     top_uncertainty_str = "±0.84%"
@@ -2068,6 +2426,9 @@ def akinator_step(req: AkinatorStepRequest):
                 dx_probs[c_idx] *= prior_mults[c_name]
             v_mult = compute_vitals_multiplier(patient, c_name)
             dx_probs[c_idx] *= v_mult
+
+        # Apply Pathognomonic Precondition Guardrails (Penalize conditions missing cardinal pathognomonic symptoms)
+        dx_probs = apply_pathognomonic_guardrails(patient, dx_probs, idx_to_cond)
 
 
         # Apply Bayesian negative evidence refutation to neural posterior

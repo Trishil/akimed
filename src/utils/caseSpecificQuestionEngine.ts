@@ -169,6 +169,61 @@ const TROPICAL_QUESTIONS: AkinatorQuestion[] = [
 ];
 
 // ===========================================================================
+// TOXICOLOGICAL & ENVIRONMENTAL / CHOLINERGIC TOXIDROME PATHWAY (7 Questions)
+// ===========================================================================
+const TOX_QUESTIONS: AkinatorQuestion[] = [
+  {
+    questionId: 'tox-1',
+    questionText: 'Did the patient have direct occupational or environmental contact with agricultural crop spraying, pesticides, insecticides, or organophosphates?',
+    category: 'Epidemiology',
+    clinicalRationale: 'Direct cutaneous or inhalation exposure to organophosphate/carbamate ester cholinesterase inhibitors is the primary precipitant of acute cholinergic crisis.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-2',
+    questionText: 'Are the patient\'s pupils constricted to tiny pinpoints (< 2 mm bilaterally) with minimally sluggish or absent light reflex (miosis)?',
+    category: 'Physical Exam',
+    clinicalRationale: 'Pinpoint miosis reflects intense muscarinic pupillary sphincter contraction, a cardinal sign of cholinergic toxidrome.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-3',
+    questionText: 'Is there copious, uncontrolled salivation (drooling) and excessive eye tearing (lacrimation)?',
+    category: 'Symptom Character',
+    clinicalRationale: 'Secretory hyperstimulation (SLUDGEM/DUMBELS) confirms diffuse parasympathetic muscarinic crisis.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-4',
+    questionText: 'Is the patient in severe respiratory distress with diffuse pulmonary wheezing, coarse rhonchi, and copious airway secretions ("bronchorrhea / wet lungs")?',
+    category: 'Red Flag',
+    clinicalRationale: 'The "Killer B\'s" (Bronchorrhea, Bronchospasm, Bradycardia) are the primary cause of fatal hypoxemic respiratory failure in organophosphate poisoning.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-5',
+    questionText: 'Are there visible involuntary muscle twitches or rippling movements under the skin of the arms, legs, or chest wall (muscle fasciculations)?',
+    category: 'Physical Exam',
+    clinicalRationale: 'Muscle fasciculations represent acetylcholine accumulation at nicotinic neuromuscular junctions, which can progress to diaphragmatic paralysis.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-6',
+    questionText: 'Is the resting heart rate abnormally slow (bradycardia, HR < 60 bpm) accompanied by profuse cold diaphoresis?',
+    category: 'Red Flag',
+    clinicalRationale: 'Muscarinic vagal stimulation on the sinoatrial node produces profound bradycardia and AV block.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+  {
+    questionId: 'tox-7',
+    questionText: 'Is there a distinctive faint garlic-like, petroleum, or chemical odor emanating from the patient\'s clothing or skin?',
+    category: 'Physical Exam',
+    clinicalRationale: 'Organophosphates (e.g. Malathion, Parathion) frequently contain hydrocarbon solvents and sulfide impurities emitting a pathognomonic garlic chemical odor.',
+    possibleAnswers: LIKERT_ANSWERS,
+  },
+];
+
+// ===========================================================================
 // 2. CARDIOVASCULAR / CHEST PAIN / STEMI / DISSECTION PATHWAY (20 Questions)
 // ===========================================================================
 const CARDIO_QUESTIONS: AkinatorQuestion[] = [
@@ -771,7 +826,20 @@ export function getCaseSpecificAkinatorQuestion(
   // 1. Identify Primary Pathway based on what user entered in the chatbox
   let pathway: AkinatorQuestion[];
 
+  const hasTrueTearingPain = /\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))/i.test(s) &&
+    /\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b/i.test(s);
+  const hasTrueChestPain = /\b(?:chest pain|angina|retrosternal pain|substernal pain|crushing chest|squeezing chest)\b/i.test(s) ||
+    (/\bchest\b/i.test(s) && /\b(?:pain|pressure|tightness|heaviness|discomfort|crushing)\b/i.test(s));
+
   if (
+    s.includes('spraying') || s.includes('crops') || s.includes('farmer') ||
+    s.includes('pesticide') || s.includes('insecticide') || s.includes('organophosphate') ||
+    s.includes('carbamate') || s.includes('chemical odor') || s.includes('garlic') ||
+    s.includes('bronchorrhea') || (s.includes('pinpoint') && s.includes('miosis')) ||
+    (s.includes('salivation') && s.includes('lacrimation'))
+  ) {
+    pathway = TOX_QUESTIONS;
+  } else if (
     s.includes('kenya') || s.includes('africa') || s.includes('malaria') ||
     s.includes('tropical') || s.includes('dengue') || s.includes('typhoid') ||
     s.includes('jaundice') || s.includes('dark urine') || s.includes('dark pee') ||
@@ -779,9 +847,8 @@ export function getCaseSpecificAkinatorQuestion(
   ) {
     pathway = TROPICAL_QUESTIONS;
   } else if (
-    s.includes('chest') || s.includes('angina') || s.includes('stemi') ||
-    s.includes('dissection') || s.includes('tearing') || s.includes('pressure') ||
-    s.includes('heart') || s.includes('infarct') || s.includes('coronary')
+    hasTrueChestPain || hasTrueTearingPain || s.includes('angina') || s.includes('stemi') ||
+    s.includes('dissection') || s.includes('infarct') || s.includes('coronary')
   ) {
     pathway = CARDIO_QUESTIONS;
   } else if (
@@ -817,6 +884,15 @@ export function getCaseSpecificAkinatorQuestion(
 
   // 2. Intelligent Deduplication: Filter out findings already declared in intake text
   const isAlreadyDeclared = (q: AkinatorQuestion): boolean => {
+    // Tox deduplication
+    if (q.questionId === 'tox-1' && (s.includes('spraying') || s.includes('crop') || s.includes('pesticide') || s.includes('organophosphate'))) return true;
+    if (q.questionId === 'tox-2' && (s.includes('pinpoint') || s.includes('miosis') || s.includes('1mm'))) return true;
+    if (q.questionId === 'tox-3' && (s.includes('salivation') && s.includes('lacrimation'))) return true;
+    if (q.questionId === 'tox-4' && (s.includes('bronchorrhea') || (s.includes('wheez') && s.includes('secretions')))) return true;
+    if (q.questionId === 'tox-5' && (s.includes('fasciculation') || s.includes('twitching'))) return true;
+    if (q.questionId === 'tox-6' && (s.includes('bradycard') || (patient.vitalSigns && patient.vitalSigns.heartRate && patient.vitalSigns.heartRate <= 60))) return true;
+    if (q.questionId === 'tox-7' && (s.includes('garlic') || s.includes('chemical odor'))) return true;
+
     // Tropical deduplication
     if (q.questionId === 'trop-1' && (s.includes('rigor') || s.includes('cyclical') || s.includes('48 hours') || s.includes('every 48'))) return true;
     if (q.questionId === 'trop-2' && (s.includes('jaundice') || s.includes('yellow eyes') || s.includes('dark urine') || s.includes('dark pee'))) return true;
@@ -824,7 +900,7 @@ export function getCaseSpecificAkinatorQuestion(
     if (q.questionId === 'trop-14' && (s.includes('chemoprophylaxis') || s.includes('prophylaxis'))) return true;
 
     // Cardio deduplication
-    if (q.questionId === 'cardio-1' && s.includes('tearing')) return true;
+    if (q.questionId === 'cardio-1' && hasTrueTearingPain) return true;
     if (q.questionId === 'cardio-2' && s.includes('left arm') && s.includes('jaw')) return true;
     if (q.questionId === 'cardio-7' && s.includes('diaphoresis')) return true;
 

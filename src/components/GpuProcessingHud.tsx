@@ -180,3 +180,4 @@ export const GpuProcessingHud: React.FC<GpuProcessingHudProps> = ({
     </div>
   );
 };
+

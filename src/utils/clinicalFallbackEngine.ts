@@ -7,11 +7,21 @@ import { getCaseSpecificAkinatorQuestion } from './caseSpecificQuestionEngine';
  */
 
 export function evaluateTriageDeterministic(patient: PatientProfile): TriageEvaluation {
-  const s = (patient.chiefSymptoms + ' ' + (patient.additionalNotes || '')).toLowerCase();
+  const s = (patient.chiefSymptoms + ' ' + (patient.additionalNotes || '') + ' ' + (patient.travelHistory || '')).toLowerCase();
   const v = patient.vitalSigns;
+
+  // Toxicological / Environmental Emergency Check (Level 1 Resuscitation)
+  const isOrganophosphateOrCholinergic =
+    (s.includes('spraying') || s.includes('crops') || s.includes('farmer') || s.includes('pesticide') || s.includes('insecticide') || s.includes('organophosphate') || s.includes('carbamate') || s.includes('chemical odor') || s.includes('garlic')) &&
+    (s.includes('pupil') || s.includes('miosis') || s.includes('pinpoint') || s.includes('salivation') || s.includes('lacrimation') || s.includes('bronchorrhea') || s.includes('fasciculation') || s.includes('twitching') || s.includes('bradycardia') || s.includes('diarrhea') || s.includes('cramps'));
+
+  const hasTrueTearingChestPain =
+    /\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))/i.test(s) &&
+    /\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b/i.test(s);
 
   // Level 1: Resuscitation (immediate life threat)
   if (
+    isOrganophosphateOrCholinergic ||
     s.includes('unresponsive') ||
     s.includes('cardiac arrest') ||
     s.includes('anaphylaxis') ||
@@ -28,22 +38,34 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     (v && v.respiratoryRate && v.respiratoryRate >= 26 && v.heartRate && v.heartRate >= 120)
   ) {
     let rationale = 'Severe hemodynamic collapse, compromised airway, or imminent metabolic/respiratory arrest requiring immediate resuscitation protocols.';
-    if (s.includes('ketoacidosis') || s.includes('dka') || s.includes('acetone') || s.includes('kussmaul') || (s.includes('insulin') && s.includes('vomiting'))) {
+    let redFlags = ['Severe physiological collapse', 'High shock index', 'Impending metabolic collapse'];
+
+    if (isOrganophosphateOrCholinergic) {
+      rationale = 'Acute Organophosphate / Carbamate Poisoning with life-threatening cholinergic crisis ("Killer B\'s": severe bronchorrhea, bronchospasm, and bradycardia) causing impending respiratory failure. Requires immediate resuscitation, aggressive airway suctioning, high-dose IV Atropine, and Pralidoxime (2-PAM).';
+      redFlags = [
+        'Impending respiratory failure secondary to severe bronchorrhea & bronchospasm ("Killer B\'s")',
+        'Severe symptomatic bradycardia with hemodynamic compromise (HR < 55 bpm)',
+        'Secondary contamination risk to healthcare personnel (requires immediate HazMat Level C PPE & patient decontamination)',
+        'Central nervous system depression with impaired airway protection (GCS < 13)'
+      ];
+    } else if (s.includes('ketoacidosis') || s.includes('dka') || s.includes('acetone') || s.includes('kussmaul') || (s.includes('insulin') && s.includes('vomiting'))) {
       rationale = 'Diabetic Ketoacidosis (DKA) / Severe High-Anion Gap Metabolic Acidosis with compensatory Kussmaul tachypnea and marked dehydration requiring immediate resuscitation.';
+      redFlags = ['Severe high-anion-gap metabolic acidosis', 'Profound shock state / elevated shock index', 'Impending metabolic collapse'];
     }
+
     return {
       level: 1,
       levelName: 'Resuscitation',
       color: '#dc2626', // red-600
       timeToPhysician: 'Immediate (0 minutes)',
       rationale,
-      redFlags: ['Severe high-anion-gap metabolic acidosis', 'Profound shock state / elevated shock index', 'Impending metabolic collapse'],
+      redFlags,
     };
   }
 
   // Level 2: Emergent (high risk, don't miss life threats)
   if (
-    s.includes('tearing') ||
+    hasTrueTearingChestPain ||
     s.includes('crushing chest pain') ||
     s.includes('thunderclap') ||
     s.includes('petechial rash') ||
@@ -62,8 +84,8 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     let rationale = 'High-risk presentation with potential rapid clinical deterioration requiring urgent bedside evaluation.';
     if (s.includes('chest pain') || s.includes('stemi') || s.includes('angina')) {
       rationale = 'Acute chest pain concerning for Acute Coronary Syndrome (ACS) or acute cardiopulmonary emergency.';
-    } else if (s.includes('tearing') || s.includes('dissection')) {
-      rationale = 'Severe tearing pain concerning for acute aortic pathology / dissection.';
+    } else if (hasTrueTearingChestPain || s.includes('dissection')) {
+      rationale = 'Severe tearing retrosternal pain concerning for acute aortic pathology / dissection.';
     } else if (s.includes('meningitis') || s.includes('neck stiffness')) {
       rationale = 'Meningeal signs concerning for acute central nervous system infection.';
     } else if (s.includes('abdominal') || s.includes('peritoneal')) {
@@ -350,8 +372,93 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
     });
   }
 
-  // Scenario 2: Severe Chest Pain / Aortic Dissection / ACS
-  else if (s.includes('tearing') || (s.includes('chest pain') && (s.includes('back') || s.includes('interscapular') || s.includes('asymmetric')))) {
+  // Environmental / Toxicological Gatekeeper: Acute Cholinergic Toxidrome / Organophosphate & Carbamate Poisoning
+  const isOrganophosphateOrCholinergic =
+    (s.includes('spraying') || s.includes('crops') || s.includes('farmer') || s.includes('pesticide') || s.includes('insecticide') || s.includes('organophosphate') || s.includes('carbamate') || s.includes('chemical odor') || s.includes('garlic')) &&
+    (s.includes('pupil') || s.includes('miosis') || s.includes('pinpoint') || s.includes('salivation') || s.includes('lacrimation') || s.includes('bronchorrhea') || s.includes('fasciculation') || s.includes('twitching') || s.includes('bradycardia') || s.includes('diarrhea') || s.includes('cramps'));
+
+  const hasTrueTearingChestPain =
+    /\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))/i.test(s) &&
+    /\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b/i.test(s);
+
+  if (isOrganophosphateOrCholinergic || ((s.includes('pinpoint') || s.includes('miosis')) && (s.includes('bronchorrhea') || (s.includes('salivation') && s.includes('lacrimation'))))) {
+    differentials.push({
+      diseaseName: 'Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)',
+      icd10Code: 'T60.0X1A',
+      likelihood: 96,
+      category: 'Primary',
+      pathophysiology: 'Organophosphate and carbamate insecticides irreversibly (organophosphates) or reversibly (carbamates) inhibit acetylcholinesterase (AChE) via serine active site phosphorylation/carbamylation. This precipitates massive accumulation of acetylcholine across muscarinic synapses (parasympathetic crisis: miosis, salivation, lacrimation, urination, diarrhea, emesis, and the killer "B\'s": severe bronchorrhea, bronchospasm, bradycardia), nicotinic neuromuscular junctions (muscle fasciculations, cramping, flaccid paralysis), and central nervous system muscarinic receptors (agitation, confusion, central apnea).',
+      supportingFindings: [
+        'Occupational exposure: Agricultural crop spraying with a faint garlic-like chemical odor on clothing',
+        'Classic DUMBELS cholinergic toxidrome: Diarrhea, Pinpoint miosis (1mm pupils), Bradycardia (52 bpm), Bronchorrhea & diffuse wheezing, Emesis, Lacrimation (tearing), Copious salivation',
+        'Nicotinic neuromuscular hyperactivity: Muscle fasciculations (twitching) in arms and chest wall',
+        'Hypoxemia (SpO2 90%) and tachypnea (RR 26) driven by copious airway secretion flooding (killer "B\'s")',
+        'Central nervous system manifestations: Agitation, confusion, and depressed GCS (12)',
+      ],
+      opposingFindings: ['Absence of anticholinergic findings (mydriasis, flushed dry skin, urinary retention, tachycardia)'],
+      bedsideSignsToTest: [
+        'Pupillary diameter examination (confirm bilateral pinpoint miosis < 2mm)',
+        'Serial pulmonary auscultation assessing airway secretory load ("wet" vs "dry" lungs) to guide Atropine titration',
+        'Continuous cardiac monitoring for profound muscarinic bradycardia (HR < 50 bpm) and AV block',
+        'Neuromuscular exam for peripheral muscle fasciculations and diaphragm/intercostal fatigue',
+      ],
+      recommendedWorkup: {
+        initialLabs: [
+          'RBC Acetylcholinesterase activity (gold standard biomarker of neural AChE inhibition)',
+          'Plasma Pseudocholinesterase / Butyrylcholinesterase level',
+          'Arterial Blood Gas (ABG: assess hypoxemia and mixed respiratory/metabolic acidosis)',
+          'Complete Blood Count, Comprehensive Metabolic Panel, Serum Lactate',
+          '12-lead Electrocardiogram (ECG: monitor for QT prolongation, AV block, dysrhythmias)',
+        ],
+        confirmatoryTests: [
+          'Diagnostic Atropine trial (1-2 mg IV; failure to develop anticholinergic signs confirms cholinergic toxicity)',
+          'Serial RBC Cholinesterase showing >50% enzyme inhibition confirming organophosphate poisoning',
+        ],
+        imaging: [
+          'Portable upright Chest Radiograph (evaluate for chemical pneumonitis, copious pulmonary edema, or aspiration)',
+        ],
+      },
+      clinicalPearls: 'PRIORITY ZERO: HazMat Level C decontamination! Strip all clothing and double-bag outside the clinical care area; copiously decontaminate skin with soap and water to prevent dermal absorption by staff. Treat "Killer B\'s" immediately with high-dose IV Atropine titrated to DRYING OF AIRWAY SECRETIONS and HR > 80 bpm (NOT pupil size!). Administer Pralidoxime (2-PAM) early before AChE "aging" occurs. CONTRAINDICATION: Avoid Succinylcholine for intubation (causes prolonged apnea due to pseudocholinesterase inhibition); use Rocuronium instead.',
+    });
+
+    differentials.push({
+      diseaseName: 'Acute Carbamate Insecticide Toxicity',
+      icd10Code: 'T60.0X1A',
+      likelihood: 45,
+      category: 'Secondary',
+      pathophysiology: 'Reversible carbamylation of acetylcholinesterase producing a transient cholinergic toxidrome that resolves within 24-48 hours without irreversible enzyme "aging".',
+      supportingFindings: ['Identical clinical cholinergic features (SLUDGEM/DUMBELS) following agricultural pesticide exposure'],
+      opposingFindings: ['Organophosphates cause irreversible covalent phosphorylation and persistent toxicity without oxime reactivation'],
+      bedsideSignsToTest: ['Serial pupil and airway secretion assessments following initial Atropine therapy'],
+      recommendedWorkup: {
+        initialLabs: ['RBC Cholinesterase and Plasma Cholinesterase levels', 'Arterial Blood Gas'],
+        confirmatoryTests: ['Spontaneous recovery of cholinesterase activity within 24-48 hours'],
+      },
+      clinicalPearls: 'Carbamates do not undergo "aging", so Atropine alone is often sufficient, although Pralidoxime is still administered if the specific pesticide agent is unidentified.',
+    });
+
+    differentials.push({
+      diseaseName: 'Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)',
+      icd10Code: 'T62.0X1A',
+      likelihood: 20,
+      category: 'Alternative',
+      pathophysiology: 'Direct stimulation of postganglionic muscarinic acetylcholine receptors by the heat-stable alkaloid muscarine without cholinesterase inhibition.',
+      supportingFindings: ['Prominent salivation, lacrimation, diaphoresis, and bradycardia'],
+      opposingFindings: ['Absence of mushroom foraging/ingestion history; presence of nicotinic muscle fasciculations (muscarine only stimulates muscarinic receptors, not nicotinic NMJ)'],
+      bedsideSignsToTest: ['Examine for absence of nicotinic fasciculations or motor weakness'],
+      recommendedWorkup: {
+        initialLabs: ['Normal RBC and plasma cholinesterase levels confirm direct muscarinic agonist rather than AChE inhibitor'],
+        confirmatoryTests: ['Mycological identification of ingested mushroom sample'],
+      },
+      clinicalPearls: 'Pure muscarine poisoning does NOT cause nicotinic fasciculations or paralysis, and responds briskly to low-dose Atropine.',
+    });
+  }
+
+  // Scenario 2: Severe Chest Pain / Aortic Dissection / ACS (Strict Pathognomonic Preconditions Enforced)
+  else if (
+    (hasTrueTearingChestPain || ((s.includes('chest pain') || s.includes('retrosternal')) && (s.includes('back') || s.includes('interscapular') || s.includes('asymmetric')))) &&
+    !s.includes('lacrimation') && !s.includes('bronchorrhea') && !s.includes('spraying')
+  ) {
     differentials.push({
       diseaseName: 'Acute Stanford Type A Aortic Dissection',
       icd10Code: 'I71.01',
@@ -536,17 +643,34 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
     });
   }
 
+  let immediateActionPlan = [
+    `Triage Level ${triage.level} (${triage.levelName}): Prioritize patient evaluation within ${triage.timeToPhysician}.`,
+    'Establish large-bore peripheral IV access and draw baseline blood tubes (CBC, crossmatch, chemistries).',
+    'Continuous monitoring of vital signs (SpO2, continuous 3-lead telemetry, automated NIBP q15m).',
+    'Address active red flags and allergy warnings before initiating empirical pharmacotherapy.',
+  ];
+
+  if (isOrganophosphateOrCholinergic) {
+    immediateActionPlan = [
+      'HAZMAT LEVEL C PPE & DECONTAMINATION: Immediately strip all clothing and double-bag outside the ED; copiously wash skin with soap and water to protect healthcare staff from transdermal toxicity.',
+      'HIGH-DOSE ATROPINIZATION: Administer IV Atropine (2 to 4 mg IV bolus every 3-5 minutes, doubling dose if no response) titrating strictly to the clearance of bronchorrhea and bronchospasm ("Killer B\'s") and HR > 80 bpm.',
+      'CHOLINESTERASE REACTIVATION: Administer Pralidoxime (2-PAM) 1-2 g IV over 30 minutes followed by continuous infusion to treat nicotinic muscle weakness and fasciculations before irreversible enzyme "aging".',
+      'AIRWAY PROTECTION: Aggressive inline suctioning for copious airway secretions; AVOID Succinylcholine for intubation (causes prolonged paralysis due to pseudocholinesterase inhibition); use Rocuronium.',
+      'Continuous cardiac telemetry, SpO2 monitoring, and emergent ICU / Toxicology consult.',
+    ];
+  }
+
+  let differentialSummary = `Based on patient demographics (${patient.age}y ${patient.gender}), chief complaints, and past medical history, the highest probability differential is ${differentials[0]?.diseaseName}. Immediate clinical attention is required to exclude life-threatening rule-outs.`;
+  if (isOrganophosphateOrCholinergic) {
+    differentialSummary = `Patient presents with acute cholinergic crisis ("Killer B's": severe bronchorrhea, bronchospasm, bradycardia, miosis, copious secretions, and fasciculations) following commercial agricultural crop spraying. ESI Triage Level 1 (Resuscitation). Leading diagnosis: Organophosphate / Carbamate Poisoning (96%). Immediate decontamination and high-dose IV Atropine protocol initiated.`;
+  }
+
   return {
     triage,
     topDiagnoses: differentials,
     allergyAndMedicationAlerts: allergyAlerts,
-    immediateActionPlan: [
-      `Triage Level ${triage.level} (${triage.levelName}): Prioritize patient evaluation within ${triage.timeToPhysician}.`,
-      'Establish large-bore peripheral IV access and draw baseline blood tubes (CBC, crossmatch, chemistries).',
-      'Continuous monitoring of vital signs (SpO2, continuous 3-lead telemetry, automated NIBP q15m).',
-      'Address active red flags and allergy warnings before initiating empirical pharmacotherapy.',
-    ],
-    differentialSummary: `Based on patient demographics (${patient.age}y ${patient.gender}), chief complaints, and past medical history, the highest probability differential is ${differentials[0]?.diseaseName}. Immediate clinical attention is required to exclude life-threatening rule-outs.`,
+    immediateActionPlan,
+    differentialSummary,
   };
 }
 

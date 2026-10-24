@@ -43,6 +43,22 @@ export interface VitalsEliminationEvaluation {
  * Accessible by both snake_case ID and formal Disease Name.
  */
 export const DISEASE_VITALS_ONTOLOGY: Record<string, DiseaseVitalsProfile> = {
+  "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)": {
+    "hr": { "mean": 52, "std": 14, "margin": 16, "min": 30, "max": 130 },
+    "sbp": { "mean": 105, "std": 18, "margin": 20, "min": 75, "max": 160 },
+    "dbp": { "mean": 65, "std": 12, "margin": 15, "min": 45, "max": 100 },
+    "rr": { "mean": 26, "std": 6, "margin": 6, "min": 10, "max": 45 },
+    "spo2": { "mean": 90, "std": 5, "margin": 5, "min": 70, "max": 99 },
+    "temp": { "mean": 36.8, "std": 0.6, "margin": 0.8, "min": 35.5, "max": 38.2 }
+  },
+  "organophosphate_toxicity": {
+    "hr": { "mean": 52, "std": 14, "margin": 16, "min": 30, "max": 130 },
+    "sbp": { "mean": 105, "std": 18, "margin": 20, "min": 75, "max": 160 },
+    "dbp": { "mean": 65, "std": 12, "margin": 15, "min": 45, "max": 100 },
+    "rr": { "mean": 26, "std": 6, "margin": 6, "min": 10, "max": 45 },
+    "spo2": { "mean": 90, "std": 5, "margin": 5, "min": 70, "max": 99 },
+    "temp": { "mean": 36.8, "std": 0.6, "margin": 0.8, "min": 35.5, "max": 38.2 }
+  },
   "Acute COPD exacerbation / infection": {
     "hr": {
       "mean": 110,

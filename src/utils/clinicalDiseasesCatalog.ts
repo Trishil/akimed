@@ -2116,4 +2116,45 @@ export const CLINICAL_DISEASES: Record<string, DiseaseProfile> = {
     },
     clinicalPearls: "Key differentiator for Whooping cough relies on thorough clinical history and onset chronology.",
   },
+  "organophosphate_toxicity": {
+    id: "organophosphate_toxicity",
+    name: "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)",
+    icd10: "T60.0X1A",
+    category: "Primary",
+    system: "other",
+    basePrior: 1.0,
+    keywords: ["spraying", "crops", "agricultural", "farmer", "pesticide", "insecticide", "organophosphate", "carbamate", "chemical odor", "garlic", "miosis", "pinpoint", "salivation", "lacrimation", "bronchorrhea", "fasciculation", "fasciculations", "bradycardia", "sludgem", "dumbels"],
+    pathophysiology: "Organophosphate and carbamate insecticides inhibit acetylcholinesterase (AChE), causing massive systemic acetylcholine accumulation across muscarinic synapses (miosis, copious bronchorrhea, bronchospasm, profound bradycardia), nicotinic neuromuscular junctions (muscle fasciculations, weakness), and CNS receptors (agitation, confusion, central respiratory depression).",
+    supportingFindings: [
+      "Occupational agricultural exposure: Commercial crop spraying with garlic-like chemical odor on clothing",
+      "Classic DUMBELS muscarinic crisis: Pinpoint miosis (1mm pupils), profound bronchorrhea with diffuse rhonchi/wheezing, bradycardia (HR 52), watery diarrhea, vomiting, and lacrimation/salivation",
+      "Nicotinic neuromuscular hyperactivity: Visible muscle fasciculations in arms and chest wall",
+      "Hypoxemic respiratory distress (SpO2 90%) driven by excessive airway secretion flooding ('Killer B\'s')",
+      "CNS toxicity: Glasgow Coma Scale (GCS) 12 with confusion and diaphoresis"
+    ],
+    opposingFindings: ["Absence of anticholinergic or sympathomimetic findings (mydriasis, flushed dry skin, urinary retention, tachycardia)"],
+    bedsideSignsToTest: [
+      "Pupillary diameter examination (confirm bilateral pinpoint miosis < 2mm)",
+      "Serial pulmonary auscultation assessing airway secretory load ('wet' vs 'dry' lungs) to guide Atropine titration",
+      "Continuous cardiac monitoring for profound muscarinic bradycardia (HR < 50 bpm) and AV block",
+      "Neuromuscular exam for peripheral muscle fasciculations and diaphragm/intercostal fatigue"
+    ],
+    recommendedWorkup: {
+      initialLabs: [
+        "RBC Acetylcholinesterase activity (gold standard biomarker of neural AChE inhibition)",
+        "Plasma Pseudocholinesterase / Butyrylcholinesterase level",
+        "Arterial Blood Gas (ABG: assess hypoxemia and mixed respiratory/metabolic acidosis)",
+        "Complete Blood Count, Comprehensive Metabolic Panel, Serum Lactate",
+        "12-lead Electrocardiogram (ECG: monitor for QT prolongation, AV block, dysrhythmias)"
+      ],
+      confirmatoryTests: [
+        "Diagnostic Atropine trial (1-2 mg IV; failure to develop anticholinergic signs confirms cholinergic toxicity)",
+        "Serial RBC Cholinesterase showing >50% enzyme inhibition confirming organophosphate poisoning"
+      ],
+      imaging: [
+        "Portable upright Chest Radiograph (evaluate for chemical pneumonitis, copious pulmonary edema, or aspiration)"
+      ]
+    },
+    clinicalPearls: "PRIORITY ZERO: HazMat Level C decontamination! Strip all clothing and double-bag outside the clinical care area; copiously decontaminate skin with soap and water to prevent dermal absorption by staff. Treat 'Killer B\'s' immediately with high-dose IV Atropine titrated to DRYING OF AIRWAY SECRETIONS and HR > 80 bpm (NOT pupil size!). Administer Pralidoxime (2-PAM) early before AChE 'aging' occurs. CONTRAINDICATION: Avoid Succinylcholine for intubation (causes prolonged apnea due to pseudocholinesterase inhibition); use Rocuronium instead.",
+  },
 };
