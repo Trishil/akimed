@@ -3,8 +3,6 @@ import { Header } from './components/Header';
 import { PatientForm } from './components/PatientForm';
 import { AkinatorGame } from './components/AkinatorGame';
 import { TriageDifferentialView } from './components/TriageDifferentialView';
-import { VignetteSelector } from './components/VignetteSelector';
-import { MbbsProjectGuide } from './components/MbbsProjectGuide';
 import { 
   PatientProfile, 
   AkinatorState, 
@@ -18,15 +16,14 @@ import {
   getNextAkinatorQuestionDeterministic 
 } from './utils/clinicalFallbackEngine';
 import { computeAkinatorInferenceStep } from './utils/clinicalInferenceEngine';
-import { AlertCircle, Sparkles, BookOpen, RefreshCw, Cpu, HardDrive, ArrowDownRight, Compass } from 'lucide-react';
+import { AlertCircle, Sparkles, Cpu, Activity, Brain } from 'lucide-react';
 import { TrainingTelemetryModal } from './components/TrainingTelemetryModal';
-import { TestingGround } from './components/TestingGround';
 import { GpuProcessingHud } from './components/GpuProcessingHud';
 
 const INITIAL_PATIENT: PatientProfile = SAMPLE_CLINICAL_VIGNETTES[0].patient;
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide'>('akinator');
+  const [activeTab, setActiveTab] = useState<'akinator' | 'triage'>('akinator');
 
   const [patient, setPatient] = useState<PatientProfile>(INITIAL_PATIENT);
   const [history, setHistory] = useState<AkinatorQA[]>([]);
@@ -381,7 +378,7 @@ export default function App() {
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer"
               >
                 <Cpu className="w-3.5 h-3.5 text-teal-400" />
-                <span>Inspect Saved Weights</span>
+                <span>212.9M Neural Architecture & MPS Kernel</span>
               </button>
             </div>
           </div>
@@ -403,60 +400,53 @@ export default function App() {
           </div>
         )}
 
-        {/* Global Patient Intake Bar (Visible on Akinator and Triage tabs for quick tweak) */}
-        {(activeTab === 'akinator' || activeTab === 'triage') && (
-          <PatientForm
-            patient={patient}
-            setPatient={setPatient}
-            onStartAkinator={handleStartAkinator}
-            onGenerateTriage={handleGenerateTriage}
-            isLoading={isLoading}
-          />
-        )}
-
-        {/* Tab 1: Dr. Akinator Game */}
+        {/* MODE 1: Dr. Akinator Interactive Consultation */}
         {activeTab === 'akinator' && (
-          <AkinatorGame
-            patient={patient}
-            akinatorState={akinatorState}
-            history={history}
-            onAnswerQuestion={handleAnswerQuestion}
-            onRestart={handleRestart}
-            onViewFullTriage={() => setActiveTab('triage')}
-            isLoading={isLoading}
-          />
+          <div className="space-y-6">
+            <PatientForm
+              patient={patient}
+              setPatient={setPatient}
+              onStartAkinator={handleStartAkinator}
+              onGenerateTriage={handleGenerateTriage}
+              isLoading={isLoading}
+              activeMode="akinator"
+              onSwitchMode={setActiveTab}
+            />
+
+            <AkinatorGame
+              patient={patient}
+              akinatorState={akinatorState}
+              history={history}
+              onAnswerQuestion={handleAnswerQuestion}
+              onRestart={handleRestart}
+              onViewFullTriage={() => setActiveTab('triage')}
+              isLoading={isLoading}
+            />
+          </div>
         )}
 
-        {/* Tab 2: Triage & Full Differential */}
-        {activeTab === 'triage' && assessment && (
-          <TriageDifferentialView
-            assessment={assessment}
-            patient={patient}
-            onPlayAkinator={() => setActiveTab('akinator')}
-          />
+        {/* MODE 2: Direct Emergency Triage & Differential (Instant Case Analysis) */}
+        {activeTab === 'triage' && (
+          <div className="space-y-6">
+            <PatientForm
+              patient={patient}
+              setPatient={setPatient}
+              onStartAkinator={handleStartAkinator}
+              onGenerateTriage={handleGenerateTriage}
+              isLoading={isLoading}
+              activeMode="triage"
+              onSwitchMode={setActiveTab}
+            />
+
+            {assessment && (
+              <TriageDifferentialView
+                assessment={assessment}
+                patient={patient}
+                onPlayAkinator={() => setActiveTab('akinator')}
+              />
+            )}
+          </div>
         )}
-
-        {/* Tab: Testing Ground & Diagnostic Arena */}
-        {activeTab === 'testing-ground' && (
-          <TestingGround
-            onLaunchCase={(newPatient) => {
-              setPatient(newPatient);
-              setHistory([]);
-              const initialState = computeAkinatorInferenceStep(newPatient, [], 1);
-              setAkinatorState(initialState);
-              setActiveTab('akinator');
-            }}
-          />
-        )}
-
-        {/* Tab 3: Pre-built High-Yield MBBS Clinical Vignettes */}
-
-        {activeTab === 'vignettes' && (
-          <VignetteSelector onSelectVignette={handleSelectVignette} />
-        )}
-
-        {/* Tab 4: MBBS Project Blueprint & Training Guide */}
-        {activeTab === 'guide' && <MbbsProjectGuide />}
       </main>
 
       {/* Footer - Clean Akademia Editorial Style */}

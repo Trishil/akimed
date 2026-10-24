@@ -3,8 +3,8 @@ import { Stethoscope, Brain, Activity, Sparkles, BookOpen, Cpu, RotateCcw, Slide
 import { TrainingTelemetryModal } from './TrainingTelemetryModal';
 
 interface HeaderProps {
-  activeTab: 'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide';
-  setActiveTab: (tab: 'akinator' | 'triage' | 'testing-ground' | 'vignettes' | 'guide') => void;
+  activeTab: 'akinator' | 'triage';
+  setActiveTab: (tab: 'akinator' | 'triage') => void;
   onResetPatient: () => void;
 }
 
@@ -68,8 +68,8 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
               </div>
             </div>
 
-            {/* Nav Tabs - Akademia Clean Pill Style */}
-            <nav className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+            {/* Nav Tabs - Separated Akinator Game vs Direct Conclusion */}
+            <nav className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
               <button
                 onClick={() => setActiveTab('akinator')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
@@ -90,55 +90,18 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
                     : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
                 }`}
               >
-                <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Triage & Differential</span>
+                <Activity className="w-3.5 h-3.5 text-rose-500" />
+                <span>Direct Emergency Triage</span>
               </button>
 
-              <button
-                onClick={() => setActiveTab('testing-ground')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === 'testing-ground'
-                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5 text-amber-400" />
-                <span>Testing Ground</span>
-              </button>
-
-              <button
-
-                onClick={() => setActiveTab('vignettes')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === 'vignettes'
-                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Case Vignettes</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('guide')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === 'guide'
-                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-                <span>MBBS Blueprint</span>
-              </button>
-
-              {/* Model Hub Pill Button (Akademia "Get in touch" style) */}
+              {/* Nerdy AI Model Hub Pill Button */}
               <button
                 onClick={() => setShowTelemetryModal(true)}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-zinc-900 bg-white hover:bg-zinc-900 hover:text-white text-zinc-900 text-xs font-extrabold shadow-tactile-sm transition-all ml-1 cursor-pointer"
-                title="Inspect Saved Model Checkpoints, Training Curves, and 25,000-Scenario Stress Test"
+                title="Inspect 212.9M Attention Transformer Specs, MPS Kernel Telemetry, and Tensor Dimensions"
               >
                 <Cpu className="w-3.5 h-3.5 text-teal-600" />
-                <span>Model Hub</span>
+                <span>212.9M Neural Model Info</span>
               </button>
             </nav>
           </div>
