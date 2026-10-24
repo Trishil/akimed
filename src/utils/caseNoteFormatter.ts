@@ -13,10 +13,11 @@ export function formatSoapNote(
     : 'Not recorded';
 
   let chiefComplaint = patient.chiefSymptoms;
-  if (chiefComplaint.length > 100) {
-    const ccMatch = chiefComplaint.match(/\b(?:presents to [^.]+ with|presents with|presenting with|complaining of|c\/o|evaluation of|acute onset of)\s+([^.\n]+)/i);
+  if (chiefComplaint.length > 80) {
+    const ccMatch = chiefComplaint.match(/(?:primary\s+complaint|chief\s+complaint|c\/o|presenting\s+complaint|reason\s+for\s+(?:visit|encounter|admission))\s*[:\-]\s*([^\n\r]+?)(?=(?:\s*duration|\s*history|\s*hpi|\s*vitals|\s*vital\s*signs|$))/i) ||
+                    chiefComplaint.match(/\b(?:presents to [^.]+ with|presents with|presenting with|complaining of|c\/o|evaluation of|acute onset of)\s+([^.\n]+)/i);
     if (ccMatch) {
-      chiefComplaint = ccMatch[1].trim();
+      chiefComplaint = ccMatch[1].replace(/^[":\s]+|[":\s]+$/g, '').trim();
     }
   }
 

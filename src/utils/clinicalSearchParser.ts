@@ -436,7 +436,7 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     parsedDemographics.gender = matchedGender;
   }
 
-  if (lower.includes('pregnant') || lower.includes('gestation') || lower.includes('gravida')) {
+  if ((lower.includes('pregnant') || lower.includes('gestation') || lower.includes('gravida') || lower.includes('ectopic') || (lower.includes('lmp') && (lower.includes('week') || lower.includes('month'))) || lower.includes('amenorrhea') || lower.includes('missed period')) && parsedDemographics.gender !== 'Male') {
     parsedDemographics.isPregnant = true;
     if (!parsedDemographics.gender) parsedDemographics.gender = 'Female';
   }
@@ -752,6 +752,95 @@ const MEDICATION_RULES_REF = [
   { pattern: /\b(?:aspirin|clopidogrel|plavix)\b/i, med: "Antiplatelet therapy", pmh: "Coronary Artery Disease / Vascular Risk" }
 ];
 
+export interface ClinicalVignetteSections {
+  chiefComplaint?: string;
+  duration?: string;
+  hpi?: string;
+  pmh?: string;
+  social?: string;
+  meds?: string;
+  allergies?: string;
+  physicalExam?: string;
+}
+
+/**
+ * Robust clinical document section segmentation (Section Lexer).
+ * Uses strict multiline/header boundary patterns to segment standard medical case sections
+ * without character collision or word-internal matching (e.g. "pe:" will never match "period").
+ */
+export function parseClinicalVignetteSections(rawText: string): ClinicalVignetteSections {
+  const text = (rawText || '').trim();
+  if (!text) return {};
+
+  // 1. Chief Complaint / Primary Complaint
+  let chiefComplaint: string | undefined;
+  const ccMatch = text.match(/(?:primary\s+complaint|chief\s+complaint|c\/o|presenting\s+complaint|reason\s+for\s+(?:visit|encounter|admission))\s*[:\-]\s*([^\n\r]+?)(?=(?:\s*duration|\s*history|\s*hpi|\s*vitals|\s*vital\s*signs|$))/i) ||
+                  text.match(/\b(?:complaining of|c\/o|evaluation of|presents? with|presenting with|presents to [^.]+ with)\s+([^.\n]+)/i);
+  if (ccMatch) {
+    chiefComplaint = ccMatch[1].replace(/^[":\s]+|[":\s]+$/g, '').trim();
+  }
+
+  // 2. Duration
+  let duration: string | undefined;
+  const durMatch = text.match(/(?:duration|onset|timeline)\s*[:\-]\s*([^\n\r.]+)/i);
+  if (durMatch) {
+    duration = durMatch[1].trim();
+  }
+
+  // 3. History of Present Illness (HPI)
+  let hpi: string | undefined;
+  const hpiMatch = text.match(/(?:history\s+of\s+present\s+illness|\bhpi\b)\s*[:\-)]*\s*([\s\S]+?)(?=(?:\bvital\s*signs|\bvitals\b|\brelevant\s+history|\bpast\s+medical|\bpmh\b|\bsocial\/sexual|\bsocial\s+history|\bcurrent\s+medications|\bmedications\b|\bmeds\b|\bphysical\s*examination|\bphysical\s+exam|\bpe\s*:|$))/i);
+  if (hpiMatch) {
+    hpi = hpiMatch[1].trim();
+  }
+
+  // 4. Past Medical History (PMH)
+  let pmh: string | undefined;
+  const pmhMatch = text.match(/(?:past\s+medical\s+history|\bpmh\b|prior\s+medical\s+history)\s*[:\-]*\s*([\s\S]+?)(?=(?:\bsocial\/sexual|\bsocial\s+history|\bcurrent\s+medications|\bmedications\b|\bmeds\b|\ballergies\b|\bvital\s*signs|\bvitals\b|\bphysical\s*examination|\bphysical\s+exam|\bpe\s*:|$))/i);
+  if (pmhMatch) {
+    pmh = pmhMatch[1].trim();
+  }
+
+  // 5. Social / Sexual History
+  let social: string | undefined;
+  const socMatch = text.match(/(?:social(?:\s*\/\s*sexual)?\s+history|sexual\s+history)\s*[:\-]*\s*([\s\S]+?)(?=(?:\bcurrent\s+medications|\bmedications\b|\bmeds\b|\ballergies\b|\bvital\s*signs|\bvitals\b|\bphysical\s*examination|\bphysical\s+exam|\bpe\s*:|$))/i);
+  if (socMatch) {
+    social = socMatch[1].trim();
+  }
+
+  // 6. Current Medications
+  let meds: string | undefined;
+  const medsMatch = text.match(/(?:current\s+medications|medications|\bmeds\b)\s*[:\-]*\s*([\s\S]+?)(?=(?:\ballergies\b|\bvital\s*signs|\bvitals\b|\bphysical\s*examination|\bphysical\s+exam|\bpe\s*:|$))/i);
+  if (medsMatch) {
+    meds = medsMatch[1].trim();
+  }
+
+  // 7. Allergies
+  let allergies: string | undefined;
+  const algMatch = text.match(/(?:allergies|drug\s+allergies)\s*[:\-]*\s*([\s\S]+?)(?=(?:\bvital\s*signs|\bvitals\b|\bphysical\s*examination|\bphysical\s+exam|\bpe\s*:|$))/i);
+  if (algMatch) {
+    allergies = algMatch[1].trim();
+  }
+
+  // 8. Physical Examination (strictly word-boundary + colon for PE)
+  let physicalExam: string | undefined;
+  const peMatch = text.match(/(?:physical\s+examination(?:\s+findings)?|physical\s+exam|exam\s+findings|\bpe\s*:)[\s:\-]*([\s\S]+)$/i);
+  if (peMatch) {
+    physicalExam = peMatch[1].trim();
+  }
+
+  return {
+    chiefComplaint,
+    duration,
+    hpi,
+    pmh,
+    social,
+    meds,
+    allergies,
+    physicalExam
+  };
+}
+
 /**
  * Updates a PatientProfile with structured entities parsed from free-form clinical search query.
  * Provides session isolation so pasting a new clinical case vignette does not merge with previous cases.
@@ -762,36 +851,19 @@ export function applyParsedSearchToPatientProfile(
   rawInputText?: string
 ): PatientProfile {
   const text = (rawInputText || prev.chiefSymptoms || '').toLowerCase();
+  const rawToSearch = rawInputText || prev.chiefSymptoms || '';
 
   // Detect if this is a new clinical case/vignette presentation
-  const isCaseVignette = /\b(?:hpi|history of present illness|presents to|chief complaint|physical exam|vital signs|patient presents|vignette)\b/i.test(text);
+  const isCaseVignette = /\b(?:hpi|history of present illness|presents to|chief complaint|primary complaint|physical exam|vital signs|patient presents|vignette)\b/i.test(text);
   const isDemographicChange = (parsed.parsedDemographics.age !== undefined && parsed.parsedDemographics.age !== prev.age) ||
     (parsed.parsedDemographics.gender !== undefined && parsed.parsedDemographics.gender !== prev.gender);
   const isNewEncounter = isCaseVignette || isDemographicChange;
 
-  // Extract structured sections from clinical vignettes
-  let extractedChiefComplaint: string | undefined;
-  let extractedHpi: string | undefined;
-  let extractedExamNotes: string | undefined;
+  // Segment clinical document into structured sections
+  const sections = parseClinicalVignetteSections(rawToSearch);
 
-  if (rawInputText || prev.chiefSymptoms) {
-    const rawToSearch = rawInputText || prev.chiefSymptoms;
-
-    const ccMatch = rawToSearch.match(/\b(?:complaining of|c\/o|evaluation of|presents? with|presenting with|presents to [^.]+ with)\s+([^.\n]+)/i);
-    if (ccMatch) {
-      extractedChiefComplaint = ccMatch[1].trim();
-    }
-
-    const hpiMatch = rawToSearch.match(/(?:history of present illness|hpi)[\s:)]*([\s\S]+?)(?=(?:vital signs|\bvitals\b|physical exam|pe:))/i);
-    if (hpiMatch) {
-      extractedHpi = hpiMatch[1].trim();
-    }
-
-    const examMatch = rawToSearch.match(/(?:physical examination findings|physical exam|exam findings|\bpe:?)[\s:]*([\s\S]+)$/i);
-    if (examMatch) {
-      extractedExamNotes = examMatch[1].trim();
-    }
-  }
+  const extractedChiefComplaint = sections.chiefComplaint;
+  const extractedDuration = sections.duration || parsed.parsedDuration;
 
   // Handle past medical history extraction or reset
   let updatedPreExisting: string[] = prev.preExistingConditions || [];
@@ -799,23 +871,47 @@ export function applyParsedSearchToPatientProfile(
     updatedPreExisting = [];
   }
 
+  const pmhToSearch = `${sections.pmh || ''} ${text}`;
+
   // Infer PMH from medications or explicit conditions
   for (const rule of MEDICATION_RULES_REF) {
-    if (rule.pattern.test(text) && rule.pmh && !updatedPreExisting.includes(rule.pmh)) {
+    if (rule.pattern.test(pmhToSearch) && rule.pmh && !updatedPreExisting.includes(rule.pmh)) {
       updatedPreExisting.push(rule.pmh);
     }
   }
-  if (/\b(?:type 1 diabetes|t1d|insulin-dependent diabetes)\b/i.test(text) && !updatedPreExisting.includes('Type 1 Diabetes Mellitus')) {
+
+  // Key clinical conditions in PMH
+  if (/\b(?:pelvic\s+inflammatory\s+disease|pid)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Pelvic Inflammatory Disease (PID)')) {
+    updatedPreExisting.push('Pelvic Inflammatory Disease (PID)');
+  }
+  if (/\b(?:ectopic\s+pregnancy)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Prior Ectopic Pregnancy')) {
+    updatedPreExisting.push('Prior Ectopic Pregnancy');
+  }
+  if (/\b(?:type\s*1\s*diabetes|t1d|insulin-dependent\s+diabetes)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Type 1 Diabetes Mellitus')) {
     updatedPreExisting.push('Type 1 Diabetes Mellitus');
   }
-  if (/\b(?:type 2 diabetes|t2d|non-insulin dependent diabetes)\b/i.test(text) && !updatedPreExisting.includes('Type 2 Diabetes Mellitus')) {
+  if (/\b(?:type\s*2\s*diabetes|t2d|non-insulin\s+dependent\s+diabetes)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Type 2 Diabetes Mellitus')) {
     updatedPreExisting.push('Type 2 Diabetes Mellitus');
   }
-  if (/\b(?:hypertension|htn|high blood pressure)\b/i.test(text) && !updatedPreExisting.includes('Hypertension')) {
+  if (/\b(?:hypertension|htn|high\s+blood\s+pressure)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Hypertension')) {
     updatedPreExisting.push('Hypertension');
   }
-  if (/\b(?:asthma)\b/i.test(text) && !updatedPreExisting.includes('Asthma')) {
+  if (/\b(?:asthma)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Asthma')) {
     updatedPreExisting.push('Asthma');
+  }
+  if (/\b(?:copd|chronic\s+obstructive)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('COPD')) {
+    updatedPreExisting.push('COPD');
+  }
+  if (/\b(?:deep\s+vein\s+thrombosis|dvt|pulmonary\s+embolism|pe)\b/i.test(pmhToSearch) && !updatedPreExisting.includes('Venous Thromboembolism (DVT/PE)')) {
+    updatedPreExisting.push('Venous Thromboembolism (DVT/PE)');
+  }
+
+  // Include cleanly formatted PMH string if not already represented
+  if (sections.pmh && !/\b(?:none|denies|no|nkda|unremarkable)\b/i.test(sections.pmh)) {
+    const cleanPmh = sections.pmh.replace(/\n+/g, ' ').trim();
+    if (cleanPmh.length > 0 && cleanPmh.length < 120 && !updatedPreExisting.some(p => cleanPmh.toLowerCase().includes(p.toLowerCase()))) {
+      updatedPreExisting.push(cleanPmh);
+    }
   }
 
   // Handle allergies
@@ -839,15 +935,34 @@ export function applyParsedSearchToPatientProfile(
   } else if (parsed.parsedMedications.length > 0) {
     updatedMeds = Array.from(new Set([...(prev.currentMedications || []), ...parsed.parsedMedications]));
   }
+  if (sections.meds && !/\b(?:none|denies|no\s+meds)\b/i.test(sections.meds)) {
+    const rawMeds = sections.meds.split(/[,;\n]/).map(m => m.trim()).filter(m => m.length > 2);
+    for (const rm of rawMeds) {
+      if (!updatedMeds.includes(rm) && !rm.toLowerCase().includes('vital signs')) {
+        updatedMeds.push(rm);
+      }
+    }
+  }
 
-  // Synthesize clean clinical notes
-  let synthesizedNotes = '';
-  if (extractedHpi && extractedExamNotes) {
-    synthesizedNotes = `${extractedHpi}\n\nPhysical Exam: ${extractedExamNotes}`;
-  } else if (extractedExamNotes) {
-    synthesizedNotes = extractedExamNotes;
-  } else if (extractedHpi) {
-    synthesizedNotes = extractedHpi;
+  // Synthesize clean clinical notes without overlaps or cutoffs
+  const narrativeParts: string[] = [];
+  if (sections.hpi) {
+    narrativeParts.push(sections.hpi);
+  }
+  if (sections.social) {
+    narrativeParts.push(`Social / Sexual History: ${sections.social}`);
+  }
+  if (sections.physicalExam) {
+    narrativeParts.push(`Physical Exam: ${sections.physicalExam}`);
+  }
+  const synthesizedNotes = narrativeParts.join('\n\n');
+
+  // Female reproductive check: amenorrhea, spotting, or ectopic signs
+  let isPregnant = parsed.parsedDemographics.isPregnant ?? prev.isPregnant;
+  if (!isPregnant && parsed.parsedDemographics.gender === 'Female' && (parsed.parsedDemographics.age || 26) <= 50) {
+    if (/\b(?:spotting|vaginal\s+spotting|vaginal\s+bleeding|missed\s+period|amenorrhea|lmp|cervical\s+motion|adnexal)\b/i.test(text)) {
+      isPregnant = true;
+    }
   }
 
   return {
@@ -855,9 +970,9 @@ export function applyParsedSearchToPatientProfile(
     chiefSymptoms: (isNewEncounter && extractedChiefComplaint) ? extractedChiefComplaint : prev.chiefSymptoms,
     age: parsed.parsedDemographics.age ?? prev.age,
     gender: parsed.parsedDemographics.gender ?? prev.gender,
-    isPregnant: parsed.parsedDemographics.isPregnant ?? prev.isPregnant,
+    isPregnant,
     travelHistory: parsed.parsedTravel || (isNewEncounter ? '' : prev.travelHistory),
-    symptomDuration: parsed.parsedDuration || (isNewEncounter ? 'Acute onset' : prev.symptomDuration),
+    symptomDuration: extractedDuration || (isNewEncounter ? 'Acute onset' : prev.symptomDuration),
     additionalNotes: synthesizedNotes || (isNewEncounter ? '' : prev.additionalNotes),
     vitalSigns: {
       bpSystolic: parsed.parsedVitals.bpSystolic ?? (isNewEncounter ? undefined : prev.vitalSigns?.bpSystolic),

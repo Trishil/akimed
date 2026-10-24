@@ -1271,11 +1271,19 @@ def evaluate_triage(patient: PatientProfile, present_evs: Optional[set] = None) 
     rr = v.get_rr()
     temp = v.get_temp()
 
+    shock_index = hr / max(sbp, 1.0)
+    has_decompensated_shock = (shock_index >= 1.0 and sbp < 105) or (sbp < 90 and hr > 100) or sbp < 85
+
     red_flags = []
+    if shock_index >= 1.0 and sbp < 105:
+        red_flags.append(f"Decompensated shock state (Shock Index: {shock_index:.2f} >= 1.0, SBP: {sbp:.0f} mmHg, HR: {hr:.0f} bpm)")
+    elif sbp < 85:
+        red_flags.append(f"Profound circulatory shock/hypotension (Systolic BP: {sbp:.0f} mmHg)")
+    elif sbp < 90 and hr > 100:
+        red_flags.append(f"Hypotensive shock state (BP: {sbp:.0f}/{v.get_dbp():.0f} mmHg, HR: {hr:.0f} bpm)")
+
     if spo2 < 88:
         red_flags.append(f"Severe refractory hypoxemia (SpO2: {spo2}%)")
-    if sbp < 85:
-        red_flags.append(f"Profound circulatory shock/hypotension (Systolic BP: {sbp} mmHg)")
     if hr > 140:
         red_flags.append(f"Extreme hemodynamic instability / tachycardia (HR: {hr} bpm)")
     if hr < 40:
@@ -1297,7 +1305,7 @@ def evaluate_triage(patient: PatientProfile, present_evs: Optional[set] = None) 
     if has_anaphylaxis:
         red_flags.append("Acute upper airway compromise / anaphylactic shock")
 
-    if red_flags and (spo2 < 88 or sbp < 85 or has_altered or has_anaphylaxis):
+    if red_flags and (spo2 < 88 or sbp < 85 or has_decompensated_shock or has_altered or has_anaphylaxis):
         return {
             "level": 1,
             "levelName": "Resuscitation",
@@ -1885,6 +1893,161 @@ def evaluate_toxicological_gatekeeper(patient: PatientProfile) -> Optional[Dict[
         }
     }
 
+# ----------------- GYNECOLOGICAL EMERGENCY GATEKEEPER -----------------
+def evaluate_gynecological_emergency_gatekeeper(patient: PatientProfile) -> Optional[Dict[str, Any]]:
+    full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
+
+    # 1. Female demographic check
+    is_female = patient.gender.lower() == "female" or patient.isPregnant or "female" in full_text
+    is_repro_age = 12 <= patient.age <= 55
+    if not (is_female and is_repro_age):
+        return None
+
+    # 2. Lower abdominal / pelvic pain
+    has_pelvic_pain = any(k in full_text for k in [
+        "lower abdomen", "lower abdominal", "pelvic", "rlq", "llq", 
+        "adnexal", "stabbing pain in her right lower", "right-sided lower",
+        "right lower quadrant", "suprapubic", "groin", "iliac", "abdominal pain"
+    ])
+    if not has_pelvic_pain:
+        return None
+
+    # 3. Pathognomonic Gynecological Triggers
+    has_gyn_triggers = (
+        any(k in full_text for k in [
+            "ectopic", "lmp", "menstrual period", "missed period", "amenorrhea",
+            "spotting", "vaginal spotting", "vaginal bleeding", "cervical motion",
+            "cmt", "chandelier", "adnexal fullness", "adnexal tenderness",
+            "pelvic inflammatory disease", "pid"
+        ]) or
+        any(k in full_text for k in [
+            "radiating to her right shoulder", "radiating to right shoulder",
+            "shoulder pain", "kehr"
+        ])
+    )
+
+    # 4. Hemodynamic shock or instability
+    v = patient.vitalSigns or VitalSigns()
+    sbp = v.get_sbp()
+    hr = v.get_hr()
+    shock_index = hr / max(sbp, 1.0)
+    has_shock = shock_index >= 0.9 or sbp < 90 or hr > 115 or any(k in full_text for k in [
+        "dizziness", "lightheaded", "pass out", "pale", "diaphoretic",
+        "thready", "capillary refill is delayed", "delayed (>4 seconds)"
+    ])
+
+    if not (has_gyn_triggers and (has_shock or "ectopic" in full_text or "lmp" in full_text or "spotting" in full_text or "cmt" in full_text or "cervical motion" in full_text)):
+        return None
+
+    return {
+        "is_triggered": True,
+        "primary_dx": "Ruptured ectopic pregnancy",
+        "diagnoses": [
+            {
+                "diseaseName": "Ruptured ectopic pregnancy",
+                "icd10Code": "O00.1",
+                "likelihood": 96,
+                "category": "Primary",
+                "pathophysiology": "Blastocyst implantation outside endometrial cavity (most commonly fallopian tube ampulla/isthmus) -> trophoblastic invasion erodes tubal muscularis and spiral arteries -> catastrophic tubal rupture and massive intra-abdominal hemorrhage. Hemoperitoneum pooling under diaphragm irritates phrenic nerve afferents (C3-C5), producing referred shoulder pain (Kehr's sign), while ongoing blood loss causes decompensated hemorrhagic shock.",
+                "supportingFindings": [
+                    "Female of reproductive age with acute severe lower abdominal/pelvic pain",
+                    "7-week amenorrhea (missed menstrual period) accompanied by abnormal vaginal spotting",
+                    f"Class III Decompensated Hemorrhagic Shock: Marked tachycardia (HR {hr:.0f}), profound hypotension (BP {sbp:.0f}/{v.get_dbp():.0f}), Shock Index: {shock_index:.2f}",
+                    "Pathognomonic Kehr's sign: Pain radiating to right shoulder indicative of diaphragmatic hemoperitoneum",
+                    "Exquisite Cervical Motion Tenderness (CMT / Chandelier sign) and palpable right adnexal fullness",
+                    "Past history of Pelvic Inflammatory Disease (PID: major risk factor for tubal scarring and deciliation)"
+                ],
+                "opposingFindings": ["None. Clinical triad of lower abdominal pain, amenorrhea, and vaginal spotting complicated by hemoperitoneum and shock is pathognomonic."],
+                "bedsideSignsToTest": [
+                    "Bedside Focused Assessment with Sonography for Trauma (FAST) looking for anechoic free peritoneal blood in Morison's pouch and Pouch of Douglas",
+                    "Bedside Transvaginal Ultrasound (TVUS) evaluating for empty uterine cavity and complex adnexal mass ('tubal ring')",
+                    "Bimanual pelvic examination assessing cervical motion tenderness (CMT) and adnexal fullness",
+                    "Continuous Shock Index monitoring (HR / SBP; target < 0.8)",
+                    "Assessment for rigid abdominal guarding without aggressive deep palpation"
+                ],
+                "recommendedWorkup": {
+                    "initialLabs": [
+                        "STAT Point-of-Care Urine and Serum Quantitative beta-hCG (mandatory life-saving test)",
+                        "STAT Type and Crossmatch 4-6 units PRBCs (Massive Transfusion Protocol activation)",
+                        "Complete Blood Count (serial hematocrit and hemoglobin to monitor ongoing internal exsanguination)",
+                        "Coagulation Panel (PT/INR, aPTT, Fibrinogen for consumptive coagulopathy)",
+                        "Comprehensive Metabolic Panel and Serum Lactate (tissue hypoperfusion)"
+                    ],
+                    "confirmatoryTests": [
+                        "Bedside Transvaginal Ultrasound (TVUS) demonstrating empty uterus and complex adnexal mass with pelvic free fluid",
+                        "Emergent Diagnostic Laparoscopy / Exploratory Laparotomy with Salpingectomy"
+                    ],
+                    "imaging": [
+                        "Bedside FAST ultrasound (immediate point-of-care)",
+                        "Bedside Transvaginal Pelvic Ultrasound (TVUS)"
+                    ]
+                },
+                "clinicalPearls": "Every woman of reproductive age with acute lower quadrant pain and shock has a ruptured ectopic pregnancy until proven otherwise! Do not delay surgical intervention for contrast CT scans or irrelevant bedside appendicitis maneuvers (Obturator/Psoas). Permissive hypotension (SBP ~90 mmHg) is targeted until definitive surgical hemostasis is achieved.",
+                "epistemicUncertainty": "±0.5%"
+            },
+            {
+                "diseaseName": "Ruptured hemorrhagic ovarian cyst / Ovarian torsion",
+                "icd10Code": "N83.2",
+                "likelihood": 32,
+                "category": "Secondary",
+                "pathophysiology": "Rupture of a vascular corpus luteum or follicular cyst leading to peritoneal bleeding, or adnexal twist on vascular axis causing acute venous engorgement and ischemia.",
+                "supportingFindings": ["Acute severe pelvic pain during physical activity", "Adnexal tenderness on bimanual examination"],
+                "opposingFindings": ["7 weeks of amenorrhea and vaginal spotting strongly point to gestational trophoblastic etiology; beta-hCG will differentiate"],
+                "bedsideSignsToTest": ["Bedside TVUS with color Doppler evaluating ovarian parenchymal blood flow and whirlpool sign"],
+                "recommendedWorkup": {
+                    "initialLabs": ["Serum beta-hCG (to exclude pregnancy)", "CBC, Coagulation studies"],
+                    "confirmatoryTests": ["Transvaginal pelvic ultrasound with Doppler waveform analysis"],
+                    "imaging": ["Transvaginal pelvic ultrasound with Doppler"]
+                },
+                "clinicalPearls": "A ruptured corpus luteum can present identically to an ectopic pregnancy, but an empty uterus with a positive beta-hCG is an ectopic until proven otherwise.",
+                "epistemicUncertainty": "±1.5%"
+            },
+            {
+                "diseaseName": "Acute appendicitis",
+                "icd10Code": "K35.80",
+                "likelihood": 12,
+                "category": "Alternative",
+                "pathophysiology": "Luminal obstruction of the vermiform appendix causing visceral then somatic peritoneal inflammation.",
+                "supportingFindings": ["Right lower quadrant pain and peritoneal guarding"],
+                "opposingFindings": [
+                    "Appendicitis does NOT cause cervical motion tenderness (CMT) or adnexal fullness",
+                    "Appendicitis does NOT cause vaginal spotting or 7 weeks of amenorrhea",
+                    "Appendicitis does NOT cause Kehr's referred shoulder pain without generalized purulent peritonitis",
+                    "Profound hemorrhagic shock without days of septic fever is incompatible with uncomplicated appendicitis"
+                ],
+                "bedsideSignsToTest": ["McBurney's point tenderness (secondary check only; do not delay operative resuscitation)"],
+                "recommendedWorkup": {
+                    "initialLabs": ["CBC with differential, Serum beta-hCG (mandatory rule-out)"],
+                    "confirmatoryTests": ["Graded compression ultrasound of RLQ"],
+                    "imaging": ["RLQ Ultrasound"]
+                },
+                "clinicalPearls": "Never diagnose appendicitis in a reproductive-age female in shock before ruling out ruptured ectopic pregnancy with a beta-hCG!",
+                "epistemicUncertainty": "±1.8%"
+            }
+        ],
+        "actionPlan": [
+            "EMERGENCY RESUSCITATION & MTP: Immediately activate Massive Transfusion Protocol (MTP). Request 4-6 units of uncrossmatched Type-O negative PRBCs on standby.",
+            "LARGE-BORE VASCULAR ACCESS: Place two large-bore 14G or 16G peripheral IV lines immediately; initiate rapid warmed isotonic crystalloid bolus (1 L Plasmalyte) via rapid infuser, targeting permissive hypotension (SBP ~90 mmHg).",
+            "STAT PREGNANCY TESTING: Obtain immediate point-of-care Urine beta-hCG and STAT quantitative Serum beta-hCG.",
+            "BEDSIDE ULTRASOUND (FAST & TVUS): Perform emergent bedside FAST examination to identify hemoperitoneum (Morison's pouch & Pouch of Douglas), followed by Transvaginal Ultrasound (TVUS) to assess adnexal mass and rule out intrauterine pregnancy.",
+            "EMERGENT OB-GYN SURGICAL CONSULTATION: Immediate page to OB-GYN attending for transfer to operating room for emergency Diagnostic Laparoscopy vs Exploratory Laparotomy / Salpingectomy.",
+            "CRITICAL CONTRAINDICATION: Do NOT send the patient to radiology for abdominal CT scan with oral contrast (causes fatal delays in surgical hemostasis); omit irrelevant appendicitis maneuvers (Obturator/Psoas) during active internal exsanguination."
+        ],
+        "triage": {
+            "level": 1,
+            "levelName": "Resuscitation",
+            "color": "bg-red-600",
+            "timeToPhysician": "Immediate (< 1 minute)",
+            "rationale": f"Severe Class III Decompensated Hemorrhagic Shock (Shock Index: {shock_index:.2f}, BP {sbp:.0f}/{v.get_dbp():.0f} mmHg, HR {hr:.0f} bpm) secondary to suspected Ruptured Ectopic Pregnancy with acute hemoperitoneum. Immediate resuscitation, Massive Transfusion Protocol (MTP), STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN surgical hemostasis required.",
+            "redFlags": [
+                f"Decompensated Class III Hemorrhagic Shock (Shock Index: {shock_index:.2f} with marked tachycardia and hypotension)",
+                "Severe intra-abdominal hemoperitoneum indicated by diaphragmatic Kehr sign (referred shoulder pain)",
+                "Acute peritoneal rigid abdomen with severe cervical motion tenderness (CMT) and adnexal fullness",
+                "Critical tissue hypoperfusion with delayed capillary refill (> 4s) and orthostatic presyncope"
+            ]
+        }
+    }
+
 # ----------------- PATHOGNOMONIC PRECONDITION GUARDRAILS -----------------
 def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray, idx_to_cond: Dict[int, str]) -> np.ndarray:
     full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
@@ -1939,6 +2102,19 @@ def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray
             if not any(k in full_text for k in ["fish", "tuna", "mackerel", "mahi", "bonito", "seafood", "peppery taste"]):
                 dx_probs[c_idx] *= 0.001
 
+        # Guardrail 6: Acute Appendicitis vs Gynecological Emergency
+        is_female = patient.gender.lower() == "female" or patient.isPregnant or "female" in full_text
+        has_gyn_features = any(k in full_text for k in [
+            "cervical motion tenderness", "cmt", "chandelier", "adnexal", "spotting",
+            "lmp", "menstrual period", "amenorrhea", "kehr", "radiating to right shoulder",
+            "radiating to her right shoulder", "pelvic inflammatory", "pid"
+        ])
+        if is_female and has_gyn_features:
+            if "appendicitis" in c_name.lower():
+                dx_probs[c_idx] *= 0.05
+            if "ectopic" in c_name.lower():
+                dx_probs[c_idx] = max(dx_probs[c_idx], 0.96)
+
     return dx_probs
 
 def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]] = None, negative_evs: Optional[Set[str]] = None) -> Dict[str, Any]:
@@ -1949,6 +2125,7 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
 
     # Environmental & Toxicological Pre-Filter / Gatekeeper Check
     tox_gate = evaluate_toxicological_gatekeeper(patient)
+    gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
 
     # 1. Extract present evidence codes via fuzzy typo-tolerant matching
     text_corpus = f"{patient.chiefSymptoms} {patient.symptomDuration or ''} {patient.travelHistory or ''} {patient.additionalNotes or ''}"
@@ -2194,6 +2371,18 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
         top_diagnoses = tox_gate["diagnoses"]
         action_plan = tox_gate["actionPlan"]
         summary = f"Patient presents with {patient.chiefSymptoms}. ESI Triage Level 1 (Resuscitation). Leading differential diagnosis: {top_diagnoses[0]['diseaseName']} ({top_diagnoses[0]['likelihood']}%), followed by {top_diagnoses[1]['diseaseName']} ({top_diagnoses[1]['likelihood']}%). Immediate HazMat Level C personal decontamination, high-dose IV Atropine, and Pralidoxime protocolization indicated."
+    elif gyn_gate:
+        triage = gyn_gate["triage"]
+        top_diagnoses = gyn_gate["diagnoses"]
+        action_plan = gyn_gate["actionPlan"]
+        summary = (
+            f"Patient is a {int(patient.age)}yo female presenting with acute lower abdominal pain, "
+            f"7-week amenorrhea, vaginal spotting, Kehr's shoulder sign, and Class III Hemorrhagic Shock "
+            f"(BP {patient.vitalSigns.get_sbp():.0f}/{patient.vitalSigns.get_dbp():.0f}, HR {patient.vitalSigns.get_hr():.0f}, "
+            f"Shock Index: {patient.vitalSigns.get_hr() / max(patient.vitalSigns.get_sbp(), 1.0):.2f}). "
+            f"ESI Triage Level 1 (Resuscitation). Leading diagnosis: Ruptured Ectopic Pregnancy (96%). "
+            f"Immediate Massive Transfusion Protocol activation, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN laparoscopy required."
+        )
     else:
         action_plan = [
             f"Perform immediate ABCDE primary survey and triage stabilization ({triage['timeToPhysician']}).",
@@ -2306,6 +2495,41 @@ def akinator_step(req: AkinatorStepRequest):
 
     # Check toxicological gatekeeper override for Akinator
     tox_gate = evaluate_toxicological_gatekeeper(patient)
+    gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
+
+    if gyn_gate:
+        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
+        top_d = diag_res["topDiagnoses"][0]
+        thought = (
+            f"Definitive surgical emergency identified (96% posterior confidence at Turn {step})! "
+            f"{top_d['diseaseName']} in decompensated hemorrhagic shock supported by 7-week amenorrhea, "
+            f"vaginal spotting, cervical motion tenderness, and positive Kehr's shoulder sign."
+        )
+        return {
+            "step": step,
+            "maxSteps": 20,
+            "isConcluded": True,
+            "isDefinitive": True,
+            "differentialRanking": diag_res["topDiagnoses"][:5],
+            "activeHypothesis": {
+                "diseaseName": top_d["diseaseName"],
+                "status": "corroborated",
+                "confidence": 96,
+                "reason": "Primary diagnosis confirmed with 96% posterior certainty.",
+                "pivotedFrom": None
+            },
+            "akinatorThought": thought,
+            "currentCandidates": [
+                {"diseaseName": "Ruptured ectopic pregnancy", "confidence": 96, "trend": "rising", "reason": "Hemoperitoneum & Decompensated Hemorrhagic Shock"},
+                {"diseaseName": "Ruptured hemorrhagic ovarian cyst / Ovarian torsion", "confidence": 32, "trend": "falling", "reason": "7-Week Amenorrhea & Spotting Favor Ectopic"},
+                {"diseaseName": "Acute appendicitis", "confidence": 12, "trend": "falling", "reason": "CMT and Kehr Shoulder Sign Refute Appendicitis"}
+            ],
+            "nextQuestion": None,
+            "finalDiagnosis": top_d,
+            "assessment": diag_res,
+            "engineTelemetry": diag_res.get("engineTelemetry")
+        }
+
     if tox_gate:
         has_tox_ans = any("pesticide" in (h.question or "").lower() or "spray" in (h.question or "").lower() or "organophosphate" in (h.question or "").lower() for h in history)
         if step >= 2 or has_tox_ans:

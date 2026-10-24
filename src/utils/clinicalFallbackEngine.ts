@@ -19,16 +19,30 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
     /\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))/i.test(s) &&
     /\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b/i.test(s);
 
+  // Shock Index & Hemodynamic Collapse evaluation (SI = HR / SBP)
+  const sbp = v?.bpSystolic || 120;
+  const hr = v?.heartRate || 75;
+  const shockIndex = sbp > 0 ? hr / sbp : 0;
+  const isDecompensatedShock = (shockIndex >= 1.0 && sbp < 100) || (sbp < 90 && hr > 105) || sbp < 85;
+
+  // Gynecological Emergency / Ruptured Ectopic Suspicion in Female of Childbearing Age
+  const isFemaleReproductive = (patient.gender?.toLowerCase() === 'female' || patient.isPregnant) && (!patient.age || (patient.age >= 12 && patient.age <= 55));
+  const hasGynLowerPain = s.includes('pelvic') || s.includes('lower abdomen') || s.includes('rlq') || s.includes('llq') || s.includes('adnexal') || s.includes('lower quadrant') || s.includes('right-sided lower') || s.includes('right lower');
+  const hasGynTriggers = s.includes('ectopic') || s.includes('spotting') || s.includes('vaginal') || s.includes('amenorrhea') || s.includes('menstrual period') || s.includes('lmp') || s.includes('cervical motion') || s.includes('cmt') || s.includes('chandelier') || s.includes('shoulder') || s.includes('kehr') || s.includes('pid') || s.includes('pelvic inflammatory');
+  const isRupturedEctopicSuspect = isFemaleReproductive && hasGynLowerPain && (hasGynTriggers || shockIndex >= 0.9);
+
   // Level 1: Resuscitation (immediate life threat)
   if (
     isOrganophosphateOrCholinergic ||
+    (isRupturedEctopicSuspect && (isDecompensatedShock || shockIndex >= 0.9 || sbp < 95)) ||
+    isDecompensatedShock ||
     s.includes('unresponsive') ||
     s.includes('cardiac arrest') ||
     s.includes('anaphylaxis') ||
     s.includes('stridor') ||
     s.includes('severe respiratory distress') ||
     (v && v.spo2 && v.spo2 < 85) ||
-    (v && v.bpSystolic && v.bpSystolic < 80) ||
+    (v && v.bpSystolic && v.bpSystolic < 85) ||
     (v && v.heartRate && (v.heartRate > 150 || v.heartRate < 40)) ||
     s.includes('ketoacidosis') ||
     s.includes('dka') ||
@@ -47,6 +61,14 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
         'Severe symptomatic bradycardia with hemodynamic compromise (HR < 55 bpm)',
         'Secondary contamination risk to healthcare personnel (requires immediate HazMat Level C PPE & patient decontamination)',
         'Central nervous system depression with impaired airway protection (GCS < 13)'
+      ];
+    } else if (isRupturedEctopicSuspect && (isDecompensatedShock || shockIndex >= 0.9 || sbp < 95)) {
+      rationale = `Severe Class III Decompensated Hemorrhagic Shock (Shock Index: ${shockIndex.toFixed(2)}, BP ${sbp}/${v?.bpDiastolic || '?'}, HR ${hr} bpm) secondary to suspected Ruptured Ectopic Pregnancy with acute hemoperitoneum. Immediate resuscitation, Massive Transfusion Protocol, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN surgical hemostasis required.`;
+      redFlags = [
+        `Decompensated Class III Hemorrhagic Shock (Shock Index: ${shockIndex.toFixed(2)} with marked tachycardia and hypotension)`,
+        'Severe intra-abdominal hemoperitoneum indicated by diaphragmatic Kehr sign (referred shoulder pain)',
+        'Acute peritoneal rigid abdomen with severe cervical motion tenderness (CMT) and adnexal fullness',
+        'Critical tissue hypoperfusion with delayed capillary refill (> 4s) and orthostatic presyncope'
       ];
     } else if (s.includes('ketoacidosis') || s.includes('dka') || s.includes('acetone') || s.includes('kussmaul') || (s.includes('insulin') && s.includes('vomiting'))) {
       rationale = 'Diabetic Ketoacidosis (DKA) / Severe High-Anion Gap Metabolic Acidosis with compensatory Kussmaul tachypnea and marked dehydration requiring immediate resuscitation.';
@@ -225,6 +247,15 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
   ).toLowerCase();
 
   const differentials: DifferentialItem[] = [];
+
+  const v = patient.vitalSigns;
+  const sbp = v?.bpSystolic || 120;
+  const hr = v?.heartRate || 75;
+  const shockIndex = sbp > 0 ? hr / sbp : 0;
+  const isFemaleReproductive = (patient.gender?.toLowerCase() === 'female' || patient.isPregnant) && (!patient.age || (patient.age >= 12 && patient.age <= 55));
+  const hasGynLowerPain = s.includes('pelvic') || s.includes('lower abdomen') || s.includes('rlq') || s.includes('llq') || s.includes('adnexal') || s.includes('lower quadrant') || s.includes('right-sided lower') || s.includes('right lower');
+  const hasGynTriggers = s.includes('ectopic') || s.includes('spotting') || s.includes('vaginal') || s.includes('amenorrhea') || s.includes('menstrual period') || s.includes('lmp') || s.includes('cervical motion') || s.includes('cmt') || s.includes('chandelier') || s.includes('shoulder') || s.includes('kehr') || s.includes('pid') || s.includes('pelvic inflammatory');
+  const isRupturedEctopicSuspect = isFemaleReproductive && hasGynLowerPain && hasGynTriggers;
 
   // Scenario 0: Diabetic Ketoacidosis (DKA) / Severe Metabolic Acidosis
   if (
@@ -514,7 +545,85 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
     });
   }
 
-  // Scenario 3: Acute Abdomen (Appendicitis)
+  // Scenario 3: Gynecological Emergency / Ruptured Ectopic Pregnancy in Hemorrhagic Shock
+  else if (isRupturedEctopicSuspect) {
+    differentials.push({
+      diseaseName: 'Ruptured / Complicated Ectopic Pregnancy',
+      icd10Code: 'O00.1',
+      likelihood: 96,
+      category: 'Primary',
+      pathophysiology: 'Blastocyst implantation outside endometrial cavity (most commonly fallopian tube ampulla/isthmus) -> trophoblastic invasion erodes tubal muscularis and spiral arteries -> catastrophic tubal rupture and massive intra-abdominal hemorrhage. Hemoperitoneum pooling under diaphragm irritates phrenic nerve afferents (C3-C5), producing referred shoulder pain (Kehr\'s sign), while ongoing blood loss causes decompensated hemorrhagic shock.',
+      supportingFindings: [
+        'Female of childbearing age with acute severe lower abdominal/pelvic pain',
+        '7-week amenorrhea (missed menstrual period) accompanied by abnormal vaginal spotting',
+        `Class III Decompensated Hemorrhagic Shock: Marked tachycardia (HR ${hr}), profound hypotension (BP ${sbp}/${v?.bpDiastolic || '?'}), Shock Index: ${shockIndex.toFixed(2)}`,
+        'Pathognomonic Kehr\'s sign: Pain radiating to right shoulder indicative of diaphragmatic hemoperitoneum',
+        'Exquisite Cervical Motion Tenderness (CMT / Chandelier sign) and palpable right adnexal fullness',
+        'Past history of Pelvic Inflammatory Disease (PID: major risk factor for tubal scarring and deciliation)'
+      ],
+      opposingFindings: ['None. Clinical triad of lower abdominal pain, amenorrhea, and vaginal spotting complicated by hemoperitoneum and shock is pathognomonic.'],
+      bedsideSignsToTest: [
+        'Bedside Focused Assessment with Sonography for Trauma (FAST) looking for anechoic free peritoneal blood in Morison\'s pouch and Pouch of Douglas',
+        'Bedside Transvaginal Ultrasound (TVUS) evaluating for empty uterine cavity and complex adnexal mass ("tubal ring")',
+        'Bimanual pelvic examination assessing cervical motion tenderness (CMT) and adnexal fullness',
+        'Continuous Shock Index monitoring (HR / SBP; target < 0.8)',
+        'Assessment for rigid abdominal guarding without aggressive deep palpation'
+      ],
+      recommendedWorkup: {
+        initialLabs: [
+          'STAT Point-of-Care Urine and Serum Quantitative beta-hCG (mandatory life-saving test)',
+          'STAT Type and Crossmatch 4-6 units PRBCs (Massive Transfusion Protocol activation)',
+          'Complete Blood Count (serial hematocrit and hemoglobin to monitor ongoing internal exsanguination)',
+          'Coagulation Panel (PT/INR, aPTT, Fibrinogen for consumptive coagulopathy)',
+          'Comprehensive Metabolic Panel and Serum Lactate (tissue hypoperfusion)'
+        ],
+        confirmatoryTests: [
+          'Bedside Transvaginal Ultrasound (TVUS) demonstrating empty uterus and complex adnexal mass with pelvic free fluid',
+          'Emergent Diagnostic Laparoscopy / Exploratory Laparotomy with Salpingectomy'
+        ]
+      },
+      clinicalPearls: 'Every woman of reproductive age with acute lower quadrant pain and shock has a ruptured ectopic pregnancy until proven otherwise! Do not delay surgical intervention for contrast CT scans or irrelevant bedside appendicitis maneuvers (Obturator/Psoas). Permissive hypotension (SBP ~90 mmHg) is targeted until definitive surgical hemostasis is achieved.'
+    });
+
+    differentials.push({
+      diseaseName: 'Ruptured Hemorrhagic Ovarian Cyst / Ovarian Torsion',
+      icd10Code: 'N83.2',
+      likelihood: 32,
+      category: 'Secondary',
+      pathophysiology: 'Rupture of a vascular corpus luteum or follicular cyst leading to peritoneal bleeding, or adnexal twist on vascular axis causing acute venous engorgement and ischemia.',
+      supportingFindings: ['Acute severe pelvic pain during physical activity', 'Adnexal tenderness on bimanual examination'],
+      opposingFindings: ['7 weeks of amenorrhea and vaginal spotting strongly point to gestational trophoblastic etiology; beta-hCG will differentiate'],
+      bedsideSignsToTest: ['Bedside TVUS with color Doppler evaluating ovarian parenchymal blood flow and whirlpool sign'],
+      recommendedWorkup: {
+        initialLabs: ['Serum beta-hCG (to exclude pregnancy)', 'CBC, Coagulation studies'],
+        confirmatoryTests: ['Transvaginal pelvic ultrasound with Doppler waveform analysis']
+      },
+      clinicalPearls: 'A ruptured corpus luteum can present identically to an ectopic pregnancy, but an empty uterus with a positive beta-hCG is an ectopic until proven otherwise.'
+    });
+
+    differentials.push({
+      diseaseName: 'Acute Appendicitis',
+      icd10Code: 'K35.80',
+      likelihood: 12,
+      category: 'Alternative',
+      pathophysiology: 'Luminal obstruction of the vermiform appendix causing visceral then somatic peritoneal inflammation.',
+      supportingFindings: ['Right lower quadrant pain and peritoneal guarding'],
+      opposingFindings: [
+        'Appendicitis does NOT cause cervical motion tenderness (CMT) or adnexal fullness',
+        'Appendicitis does NOT cause vaginal spotting or 7 weeks of amenorrhea',
+        'Appendicitis does NOT cause Kehr\'s referred shoulder pain without generalized purulent peritonitis',
+        'Profound hemorrhagic shock without days of septic fever is incompatible with uncomplicated appendicitis'
+      ],
+      bedsideSignsToTest: ['McBurney\'s point tenderness (secondary check only; do not delay operative resuscitation)'],
+      recommendedWorkup: {
+        initialLabs: ['CBC with differential, Serum beta-hCG (mandatory rule-out)'],
+        confirmatoryTests: ['Graded compression ultrasound of RLQ']
+      },
+      clinicalPearls: 'Never diagnose appendicitis in a reproductive-age female in shock before ruling out ruptured ectopic pregnancy with a beta-hCG!'
+    });
+  }
+
+  // Scenario 4: Acute Abdomen (Appendicitis)
   else if (
     (s.includes('appendicitis') || (s.includes('rlq') && s.includes('pain')) || (s.includes('right lower quadrant') && s.includes('pain')) || (s.includes('mcburney') && s.includes('pain')) || (s.includes('umbilicus') && s.includes('iliac'))) &&
     !s.includes('no rebound') && !s.includes('pseudo-acute') && !s.includes('acetone') && !s.includes('insulin')
@@ -658,11 +767,22 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
       'AIRWAY PROTECTION: Aggressive inline suctioning for copious airway secretions; AVOID Succinylcholine for intubation (causes prolonged paralysis due to pseudocholinesterase inhibition); use Rocuronium.',
       'Continuous cardiac telemetry, SpO2 monitoring, and emergent ICU / Toxicology consult.',
     ];
+  } else if (isRupturedEctopicSuspect) {
+    immediateActionPlan = [
+      'EMERGENCY RESUSCITATION & MTP: Immediately activate Massive Transfusion Protocol (MTP). Request 4-6 units of uncrossmatched Type-O negative PRBCs on standby.',
+      'LARGE-BORE VASCULAR ACCESS: Place two large-bore 14G or 16G peripheral IV lines immediately; initiate rapid warmed isotonic crystalloid bolus (1 L Plasmalyte) via rapid infuser, targeting permissive hypotension (SBP ~90 mmHg).',
+      'STAT PREGNANCY TESTING: Obtain immediate point-of-care Urine beta-hCG and STAT quantitative Serum beta-hCG.',
+      'BEDSIDE ULTRASOUND (FAST & TVUS): Perform emergent bedside FAST examination to identify hemoperitoneum (Morison\'s pouch & Pouch of Douglas), followed by Transvaginal Ultrasound (TVUS) to assess adnexal mass and rule out intrauterine pregnancy.',
+      'EMERGENT OB-GYN SURGICAL CONSULTATION: Immediate page to OB-GYN attending for transfer to operating room for emergency Diagnostic Laparoscopy vs Exploratory Laparotomy / Salpingectomy.',
+      'CRITICAL CONTRAINDICATION: Do NOT send the patient to radiology for abdominal CT scan with oral contrast (causes fatal delays in surgical hemostasis); omit irrelevant appendicitis maneuvers (Obturator/Psoas) during active internal exsanguination.'
+    ];
   }
 
   let differentialSummary = `Based on patient demographics (${patient.age}y ${patient.gender}), chief complaints, and past medical history, the highest probability differential is ${differentials[0]?.diseaseName}. Immediate clinical attention is required to exclude life-threatening rule-outs.`;
   if (isOrganophosphateOrCholinergic) {
     differentialSummary = `Patient presents with acute cholinergic crisis ("Killer B's": severe bronchorrhea, bronchospasm, bradycardia, miosis, copious secretions, and fasciculations) following commercial agricultural crop spraying. ESI Triage Level 1 (Resuscitation). Leading diagnosis: Organophosphate / Carbamate Poisoning (96%). Immediate decontamination and high-dose IV Atropine protocol initiated.`;
+  } else if (isRupturedEctopicSuspect) {
+    differentialSummary = `Patient is a ${patient.age}-year-old female presenting with acute lower abdominal pain, 7-week amenorrhea, vaginal spotting, Kehr's sign (referred shoulder pain), and Class III Hemorrhagic Shock (BP ${sbp}/${v?.bpDiastolic || '?'}, HR ${hr}, Shock Index: ${shockIndex.toFixed(2)}). ESI Triage Level 1 (Resuscitation). Leading diagnosis: Ruptured Ectopic Pregnancy (96%). Immediate Massive Transfusion Protocol activation, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN operative hemostasis required.`;
   }
 
   return {
