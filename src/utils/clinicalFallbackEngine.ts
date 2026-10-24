@@ -219,6 +219,16 @@ export function checkAllergyAndMedInteractions(patient: PatientProfile): Allergy
     });
   }
 
+  // Metformin precautions prior to contrast / angiography
+  if (meds.some((m) => m.includes('metformin') || m.includes('glucophage'))) {
+    alerts.push({
+      substance: 'Metformin',
+      warningType: 'Precaution',
+      severity: 'Moderate',
+      details: 'CRITICAL PRECAUTION: Withhold Metformin immediately prior to emergent coronary catheterization / angiography and any iodinated IV contrast procedures due to the high risk of contrast-induced nephropathy precipitating fatal Metformin-Associated Lactic Acidosis (MALA).',
+    });
+  }
+
   // Combined Oral Contraceptive + Travel / Immobility (DVT/PE risk)
   if (
     meds.some((m) => m.includes('contraceptive') || m.includes('estrogen') || m.includes('cocp') || m.includes('birth control')) &&
@@ -485,9 +495,116 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
     });
   }
 
+  // Negation-Guarded Chest Pain Analysis
+  const hasNegatedChestPain = /\b(?:denies|no|without|negative\s+for|free\s+of)\s+(?:any\s+)?(?:sharp|crushing|pressure|radiation)?\s*chest\s*pain\b/i.test(s);
+  const rawHasChestPain = /\b(?:chest\s*pain|substernal|retrosternal|precordial)\b/i.test(s);
+  const hasAffirmativeChestPain = rawHasChestPain && !hasNegatedChestPain;
+
+  const hasEpigastricOrAnginal = s.includes('epigastric') || s.includes('upper stomach') || s.includes('upper abdomen') || s.includes('gnawing ache') || s.includes('gnawing discomfort') || hasAffirmativeChestPain;
+  const hasCardiacRadiation = s.includes('back') || s.includes('shoulder blades') || s.includes('interscapular') || s.includes('radiates') || s.includes('radiating');
+  const hasCardiacSigns = s.includes('s4') || s.includes('gallop') || s.includes('crackles') || s.includes('bibasilar') || s.includes('rales');
+  const isDiabeticOrElderly = (patient.gender?.toLowerCase() === 'female' && (patient.age || 0) >= 50) || (patient.age || 0) >= 55 || s.includes('diabetes') || s.includes('diabetic') || (patient.preExistingConditions || []).some(c => c.toLowerCase().includes('diabetes'));
+  const hasAnginalEquivalents = s.includes('weakness') || s.includes('fatigue') || s.includes('nausea') || s.includes('vomit') || s.includes('diaphoretic') || s.includes('sweat');
+  const isAtypicalAcsSuspect = ((hasEpigastricOrAnginal && (hasCardiacRadiation || hasCardiacSigns) && hasAnginalEquivalents && isDiabeticOrElderly) || (hasCardiacSigns && isDiabeticOrElderly)) && !isOrganophosphateOrCholinergic;
+
+  // Scenario 1.5: Atypical Acute Coronary Syndrome (ACS) / NSTEMI / Inferior-Posterior MI
+  if (isAtypicalAcsSuspect) {
+    differentials.push({
+      diseaseName: 'Possible NSTEMI / STEMI',
+      icd10Code: 'I21.9',
+      likelihood: 95,
+      category: 'Primary',
+      pathophysiology: 'Atheromatous coronary plaque rupture or erosion with superimposed non-occlusive or occlusive platelet thrombus causing acute myocardial ischemia and myocyte necrosis. In females and diabetic patients, cardiac autonomic neuropathy blunts visceral C-fiber afferents, leading to "anginal equivalent" presentations dominated by epigastric ache radiating to the mid-upper back, nausea, vomiting, diaphoresis, and profound fatigue without classic crushing chest pain. Auscultation of an S4 gallop signifies decreased left ventricular active compliance from ischemic stiffening, while bibasilar crackles (fluid) represent elevated LV end-diastolic filling pressures and acute pulmonary venous congestion (Killip Class II Heart Failure).',
+      supportingFindings: [
+        `Female (${patient.age || 62}yo) and Diabetic presenting with classic anginal equivalent: deep gnawing epigastric discomfort radiating straight through to interscapular back`,
+        'Auscultation of an audible S4 atrial gallop reflecting ischemic left ventricular compliance reduction',
+        'Mild bibasilar crackles (pulmonary fluid) auscultated at lung bases (Killip Class II heart failure)',
+        `Decompensated hemodynamic stress: Tachycardia (HR ${hr} bpm) and relative hypotension (BP ${sbp}/${v?.bpDiastolic || '58'} mmHg) with elevated Shock Index (${shockIndex.toFixed(2)})`,
+        'Autonomic symptoms: Marked diaphoresis (clammy skin), profound exhaustion, and vomiting unrelieved by antacids'
+      ],
+      opposingFindings: [
+        'Failure to respond to over-the-counter antacids refutes benign gastroesophageal reflux disease (GERD)',
+        'Soft, non-tender abdomen and absence of peritoneal signs refute acute peritonitis / surgical acute abdomen',
+        'Lungs clear of wheezing refutes primary bronchospasm / asthma exacerbation'
+      ],
+      bedsideSignsToTest: [
+        'STAT 12-lead Electrocardiogram (ECG within 10 min): specifically evaluate inferior leads (II, III, aVF) and posterior leads (V7-V9) for ST-elevation, reciprocal depressions, or T-wave inversions',
+        'Right-sided precordial leads (V3R, V4R) to rule out Right Ventricular (RV) Infarction before any nitrates are administered',
+        'Serial cardiac auscultation for persistence or loudness of S4 gallop and new ischemic mitral regurgitation murmurs',
+        'Bilateral pulmonary auscultation tracking progression of bibasilar crackles (Killip classification)',
+        'Shock Index monitoring (HR / SBP; target < 0.8 to monitor for cardiogenic shock decompensation)'
+      ],
+      recommendedWorkup: {
+        initialLabs: [
+          'STAT high-sensitivity cardiac Troponin I or T (hs-cTn: serial testing at 0h, 1h, 3h algorithm)',
+          'Complete Blood Count (rule out severe anemia precipitating demand ischemia / Type 2 MI)',
+          'Basic Metabolic Panel (Serum Creatinine, eGFR, Potassium, and Glucose for contrast clearance)',
+          'Coagulation Profile (PT/INR, aPTT prior to full-dose systemic anticoagulation)',
+          'Serum Lactate and Arterial/Venous Blood Gas (assess systemic tissue hypoperfusion / cardiogenic shock)'
+        ],
+        confirmatoryTests: [
+          'Emergent Cardiac Catheterization / Coronary Angiography (Door-to-balloon < 90 min if STEMI; early invasive < 2h if high-risk NSTEMI)',
+          'Serial hs-cTn dynamic rise/fall > 99th percentile upper reference limit'
+        ],
+        imaging: [
+          'STAT 12-lead ECG with posterior (V7-V9) and right-sided (V3R-V4R) leads',
+          'Bedside Point-of-Care Echocardiography (POCUS: assess LV regional wall motion abnormalities, EF, and exclude mechanical complications)',
+          'Portable Upright Chest Radiography (assess pulmonary venous congestion / alveolar edema)'
+        ]
+      },
+      clinicalPearls: 'UP TO 40% OF FEMALES AND DIABETICS WITH ACUTE MI NEVER EXPERIENCE CLASSIC CRUSHING CHEST PAIN! An elderly or diabetic female with unexplained epigastric ache radiating to back, diaphoresis, nausea, S4 gallop, or bibasilar crackles has Acute Coronary Syndrome until proven otherwise by STAT 12-lead ECG and serial high-sensitivity Troponin. CRITICAL PRECAUTION: Withhold Metformin immediately prior to coronary angiography / contrast exposure to prevent contrast nephropathy precipitating fatal Metformin-Associated Lactic Acidosis (MALA)! NEVER administer Nitroglycerin if right ventricular involvement (inferior STEMI with V4R elevation) is suspected.'
+    });
+
+    differentials.push({
+      diseaseName: 'Acute ST-elevation myocardial infarction (STEMI)',
+      icd10Code: 'I21.0',
+      likelihood: 72,
+      category: 'Secondary',
+      pathophysiology: 'Transmural myocardial infarction secondary to complete thrombotic coronary occlusion, particularly of the Right Coronary Artery (RCA) or Left Circumflex (LCx), which frequently causes inferior-posterior wall ischemia with referred epigastric discomfort, nausea/vomiting from Bezold-Jarisch vagal reflex, and conduction disturbances.',
+      supportingFindings: [
+        'Epigastric discomfort and back pain accompanied by hemodynamic depression and diaphoresis',
+        'S4 gallop and bibasilar pulmonary congestion indicating significant ischemic LV dysfunction'
+      ],
+      opposingFindings: [
+        'Requires confirmatory 12-lead ECG demonstration of >= 1mm ST-elevation in 2 contiguous leads or posterior ST-depression in V1-V3'
+      ],
+      bedsideSignsToTest: [
+        'STAT 12-lead ECG door-to-ECG < 10 minutes',
+        'Evaluation of right ventricular leads (V3R, V4R)'
+      ],
+      recommendedWorkup: {
+        initialLabs: ['STAT Troponin I/T', 'BMP', 'CBC', 'PT/INR'],
+        confirmatoryTests: ['Immediate Primary Percutaneous Coronary Intervention (PCI)'],
+        imaging: ['12-lead ECG', 'Bedside Echocardiography']
+      },
+      clinicalPearls: 'Door-to-balloon time < 90 minutes is the paramount quality metric for STEMI survival. Every 30 minutes of delay increases 1-year mortality by 7.5%.'
+    });
+
+    differentials.push({
+      diseaseName: 'Acute pancreatitis',
+      icd10Code: 'K85.9',
+      likelihood: 25,
+      category: 'Alternative',
+      pathophysiology: 'Premature intracellular activation of pancreatic zymogens causing autodigestion of pancreatic parenchyma and peripancreatic fat necrosis.',
+      supportingFindings: ['Deep, constant gnawing epigastric pain radiating directly through to the back', 'Nausea and vomiting'],
+      opposingFindings: [
+        'Pancreatitis does not produce an audible S4 cardiac gallop',
+        'Soft non-tender abdomen without focal epigastric tenderness refutes severe pancreatitis',
+        'Bibasilar crackles without ARDS or high fevers favors cardiogenic pulmonary congestion'
+      ],
+      bedsideSignsToTest: ['Focal epigastric tenderness palpation', 'Cullen and Grey Turner signs'],
+      recommendedWorkup: {
+        initialLabs: ['Serum Lipase (>3x upper limit of normal)', 'Serum Amylase', 'BMP', 'CBC'],
+        confirmatoryTests: ['Serum Lipase > 3x URL confirms pancreatitis'],
+        imaging: ['RUQ Ultrasound', 'Abdominal CT with IV contrast']
+      },
+      clinicalPearls: 'Always rule out Acute Coronary Syndrome first when epigastric pain is accompanied by S4 gallop or crackles!'
+    });
+  }
+
   // Scenario 2: Severe Chest Pain / Aortic Dissection / ACS (Strict Pathognomonic Preconditions Enforced)
   else if (
-    (hasTrueTearingChestPain || ((s.includes('chest pain') || s.includes('retrosternal')) && (s.includes('back') || s.includes('interscapular') || s.includes('asymmetric')))) &&
+    (hasTrueTearingChestPain || (hasAffirmativeChestPain && (s.includes('back') || s.includes('interscapular') || s.includes('asymmetric')))) &&
     !s.includes('lacrimation') && !s.includes('bronchorrhea') && !s.includes('spraying')
   ) {
     differentials.push({
@@ -767,6 +884,19 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
       'AIRWAY PROTECTION: Aggressive inline suctioning for copious airway secretions; AVOID Succinylcholine for intubation (causes prolonged paralysis due to pseudocholinesterase inhibition); use Rocuronium.',
       'Continuous cardiac telemetry, SpO2 monitoring, and emergent ICU / Toxicology consult.',
     ];
+  } else if (isAtypicalAcsSuspect) {
+    immediateActionPlan = [
+      'EMERGENCY ACS & CATH LAB PROTOCOL: Immediate Senior Attending Cardiologist bedside notification and Cardiac Catheterization Lab standby activation.',
+      'STAT 12-LEAD ECG DOOR-TO-ECG < 10 MIN: Obtain immediate 12-lead ECG; include right-sided leads (V3R-V4R) to evaluate for RV infarction and posterior leads (V7-V9) to rule out isolated posterior STEMI.',
+      'STAT CARDIAC ENZYMES: Draw STAT high-sensitivity cardiac Troponin I/T (hs-cTn: 0h, 1h, 3h serial protocol), CBC, CMP, and Coagulation panel.',
+      'DUAL ANTIPLATELET THERAPY (DAPT): Administer non-enteric coated Aspirin 325 mg orally CHEWED STAT, plus P2Y12 inhibitor loading (Ticagrelor 180 mg PO or Clopidogrel 600 mg PO).',
+      'CRITICAL MEDICATION PRECAUTION (METFORMIN): IMMEDIATELY WITHHOLD METFORMIN prior to coronary angiography / contrast injection due to high risk of contrast-induced nephropathy triggering fatal Metformin-Associated Lactic Acidosis (MALA).',
+      'SYSTEMIC ANTICOAGULATION: Administer weight-based IV Unfractionated Heparin (60 units/kg bolus, maximum 4,000 units, followed by 12 units/kg/hr infusion) targeting an aPTT of 50-70 seconds.',
+      'CAUTION REGARDING NITRATES: DO NOT administer sublingual nitroglycerin until right ventricular infarction (ST elevation in V4R) and severe hypotension are ruled out, as nitrates precipitate profound, refractory venodilatory shock.',
+      'CONTINUOUS CARDIAC MONITORING & RESUSCITATION: Connect continuous 12-lead telemetry, pulse oximetry (supplemental O2 if SpO2 < 90%), and establish two large-bore 18G peripheral IV lines.'
+    ];
+  } else if (isAtypicalAcsSuspect) {
+    differentialSummary = `Patient is a ${patient.age}-year-old female with diabetes presenting with an anginal equivalent: deep gnawing epigastric discomfort radiating to the back, nausea, vomiting, diaphoresis, audible S4 gallop, and bibasilar crackles (Killip Class II). ESI Triage Level ${triage.level} (${triage.levelName}). Leading diagnosis: Possible NSTEMI / STEMI (95%), followed by Acute ST-elevation myocardial infarction (STEMI) (72%). Immediate STAT 12-lead ECG (< 10 min), Troponin, Aspirin 325 mg chewed, Metformin withholding, and Cath Lab activation required.`;
   } else if (isRupturedEctopicSuspect) {
     immediateActionPlan = [
       'EMERGENCY RESUSCITATION & MTP: Immediately activate Massive Transfusion Protocol (MTP). Request 4-6 units of uncrossmatched Type-O negative PRBCs on standby.',
@@ -781,6 +911,19 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
   let differentialSummary = `Based on patient demographics (${patient.age}y ${patient.gender}), chief complaints, and past medical history, the highest probability differential is ${differentials[0]?.diseaseName}. Immediate clinical attention is required to exclude life-threatening rule-outs.`;
   if (isOrganophosphateOrCholinergic) {
     differentialSummary = `Patient presents with acute cholinergic crisis ("Killer B's": severe bronchorrhea, bronchospasm, bradycardia, miosis, copious secretions, and fasciculations) following commercial agricultural crop spraying. ESI Triage Level 1 (Resuscitation). Leading diagnosis: Organophosphate / Carbamate Poisoning (96%). Immediate decontamination and high-dose IV Atropine protocol initiated.`;
+  } else if (isAtypicalAcsSuspect) {
+    immediateActionPlan = [
+      'EMERGENCY ACS & CATH LAB PROTOCOL: Immediate Senior Attending Cardiologist bedside notification and Cardiac Catheterization Lab standby activation.',
+      'STAT 12-LEAD ECG DOOR-TO-ECG < 10 MIN: Obtain immediate 12-lead ECG; include right-sided leads (V3R-V4R) to evaluate for RV infarction and posterior leads (V7-V9) to rule out isolated posterior STEMI.',
+      'STAT CARDIAC ENZYMES: Draw STAT high-sensitivity cardiac Troponin I/T (hs-cTn: 0h, 1h, 3h serial protocol), CBC, CMP, and Coagulation panel.',
+      'DUAL ANTIPLATELET THERAPY (DAPT): Administer non-enteric coated Aspirin 325 mg orally CHEWED STAT, plus P2Y12 inhibitor loading (Ticagrelor 180 mg PO or Clopidogrel 600 mg PO).',
+      'CRITICAL MEDICATION PRECAUTION (METFORMIN): IMMEDIATELY WITHHOLD METFORMIN prior to coronary angiography / contrast injection due to high risk of contrast-induced nephropathy triggering fatal Metformin-Associated Lactic Acidosis (MALA).',
+      'SYSTEMIC ANTICOAGULATION: Administer weight-based IV Unfractionated Heparin (60 units/kg bolus, maximum 4,000 units, followed by 12 units/kg/hr infusion) targeting an aPTT of 50-70 seconds.',
+      'CAUTION REGARDING NITRATES: DO NOT administer sublingual nitroglycerin until right ventricular infarction (ST elevation in V4R) and severe hypotension are ruled out, as nitrates precipitate profound, refractory venodilatory shock.',
+      'CONTINUOUS CARDIAC MONITORING & RESUSCITATION: Connect continuous 12-lead telemetry, pulse oximetry (supplemental O2 if SpO2 < 90%), and establish two large-bore 18G peripheral IV lines.'
+    ];
+  } else if (isAtypicalAcsSuspect) {
+    differentialSummary = `Patient is a ${patient.age}-year-old female with diabetes presenting with an anginal equivalent: deep gnawing epigastric discomfort radiating to the back, nausea, vomiting, diaphoresis, audible S4 gallop, and bibasilar crackles (Killip Class II). ESI Triage Level ${triage.level} (${triage.levelName}). Leading diagnosis: Possible NSTEMI / STEMI (95%), followed by Acute ST-elevation myocardial infarction (STEMI) (72%). Immediate STAT 12-lead ECG (< 10 min), Troponin, Aspirin 325 mg chewed, Metformin withholding, and Cath Lab activation required.`;
   } else if (isRupturedEctopicSuspect) {
     differentialSummary = `Patient is a ${patient.age}-year-old female presenting with acute lower abdominal pain, 7-week amenorrhea, vaginal spotting, Kehr's sign (referred shoulder pain), and Class III Hemorrhagic Shock (BP ${sbp}/${v?.bpDiastolic || '?'}, HR ${hr}, Shock Index: ${shockIndex.toFixed(2)}). ESI Triage Level 1 (Resuscitation). Leading diagnosis: Ruptured Ectopic Pregnancy (96%). Immediate Massive Transfusion Protocol activation, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN operative hemostasis required.`;
   }

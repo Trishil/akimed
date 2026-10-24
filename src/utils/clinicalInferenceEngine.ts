@@ -54,11 +54,10 @@ export function computeInitialDiseasePriors(patient: PatientProfile): Record<str
       }
     }
 
-    // 2. Travel History Priors
+    // 2. Travel History Priors (With Negation Guard)
     const hasTravel = patient.travelHistory &&
       patient.travelHistory.trim() !== '' &&
-      !patient.travelHistory.toLowerCase().includes('no travel') &&
-      !patient.travelHistory.toLowerCase().includes('none');
+      !/\b(?:no|none|denies|negative|without|unremarkable)\b/i.test(patient.travelHistory);
 
     if (hasTravel) {
       if (['malaria', 'dengue', 'typhoid', 'leptospirosis', 'tuberculosis'].includes(id)) {

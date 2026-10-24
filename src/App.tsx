@@ -20,7 +20,25 @@ import { AlertCircle, Sparkles, Cpu, Activity, Brain } from 'lucide-react';
 import { TrainingTelemetryModal } from './components/TrainingTelemetryModal';
 import { GpuProcessingHud } from './components/GpuProcessingHud';
 
-const INITIAL_PATIENT: PatientProfile = SAMPLE_CLINICAL_VIGNETTES[0].patient;
+const INITIAL_PATIENT: PatientProfile = {
+  age: 30,
+  gender: 'Male',
+  chiefSymptoms: '',
+  symptomDuration: 'Acute onset',
+  preExistingConditions: [],
+  currentMedications: [],
+  allergies: [],
+  travelHistory: '',
+  additionalNotes: '',
+  vitalSigns: {
+    bpSystolic: 120,
+    bpDiastolic: 80,
+    heartRate: 75,
+    respiratoryRate: 16,
+    spo2: 98,
+    temperatureC: 37.0,
+  },
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'akinator' | 'triage'>('akinator');
@@ -32,14 +50,19 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   // Akinator state
-  const [akinatorState, setAkinatorState] = useState<AkinatorState>(() =>
-    computeAkinatorInferenceStep(INITIAL_PATIENT, [], 1)
-  );
+  const [akinatorState, setAkinatorState] = useState<AkinatorState>({
+    step: 1,
+    maxSteps: 20,
+    isConcluded: false,
+    isDefinitive: false,
+    differentialRanking: [],
+    currentCandidates: [],
+    nextQuestion: undefined,
+    akinatorThought: 'Enter patient clinical presentation above to begin...',
+  });
 
   // Triage & Assessment state
-  const [assessment, setAssessment] = useState<DiagnosticAssessment | null>(() =>
-    generateDeterministicAssessment(INITIAL_PATIENT)
-  );
+  const [assessment, setAssessment] = useState<DiagnosticAssessment | null>(null);
 
   const [showTelemetryModal, setShowTelemetryModal] = useState<boolean>(false);
 

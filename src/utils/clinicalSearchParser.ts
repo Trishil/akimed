@@ -442,33 +442,40 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   }
 
   // -------------------------------------------------------------------------
-  // B. TRAVEL & ENDEMIC GEOGRAPHY PARSING
+  // B. TRAVEL & ENDEMIC GEOGRAPHY PARSING (With Strict Negation Awareness)
   // -------------------------------------------------------------------------
   let parsedTravel: string | undefined;
-  const travelKeywords = [
-    'kenya', 'africa', 'sub-saharan', 'tanzania', 'uganda', 'ghana', 'nigeria',
-    'safari', 'malaria', 'endemic', 'india', 'thailand', 'southeast asia', 'vietnam',
-    'cambodia', 'brazil', 'amazon', 'peru', 'flight', 'international flight', 'travel', 'trip', 'returned from'
-  ];
+  const isTravelNegated = /\b(?:no|none|denies|negative\s+for|without)\s+(?:recent\s+)?(?:international\s+)?(?:travel|trip|flight)\b/i.test(lower) ||
+                          /\btravel\s*(?:epidemiology)?\s*:\s*(?:no|none|denies|negative|unremarkable)\b/i.test(lower);
 
-  for (const tkw of travelKeywords) {
-    if (lower.includes(tkw)) {
-      // Extract sentence or context around travel
-      const travelSentenceMatch = raw.match(new RegExp(`[^.?!;]*\\b${tkw}\\b[^.?!;]*`, 'i'));
-      if (travelSentenceMatch) {
-        parsedTravel = travelSentenceMatch[0].trim();
-      } else {
-        parsedTravel = `Recent travel / flight history (${tkw.toUpperCase()})`;
+  if (isTravelNegated) {
+    parsedTravel = 'No recent international travel';
+  } else {
+    const travelKeywords = [
+      'kenya', 'africa', 'sub-saharan', 'tanzania', 'uganda', 'ghana', 'nigeria',
+      'safari', 'malaria', 'endemic', 'india', 'thailand', 'southeast asia', 'vietnam',
+      'cambodia', 'brazil', 'amazon', 'peru', 'flight', 'international flight', 'travel', 'trip', 'returned from'
+    ];
+
+    for (const tkw of travelKeywords) {
+      if (lower.includes(tkw)) {
+        // Extract sentence or context around travel
+        const travelSentenceMatch = raw.match(new RegExp(`[^.?!;]*\\b${tkw}\\b[^.?!;]*`, 'i'));
+        if (travelSentenceMatch) {
+          parsedTravel = travelSentenceMatch[0].trim();
+        } else {
+          parsedTravel = `Recent travel / flight history (${tkw.toUpperCase()})`;
+        }
+        conceptsMap.set('TRAVEL_ENDEMIC', {
+          id: 'TRAVEL_ENDEMIC',
+          canonicalName: `Endemic Travel: ${parsedTravel}`,
+          category: 'Endemic Travel',
+          matchedText: tkw,
+          isShortform: false,
+          isTypoCorrected: false
+        });
+        break;
       }
-      conceptsMap.set('TRAVEL_ENDEMIC', {
-        id: 'TRAVEL_ENDEMIC',
-        canonicalName: `Endemic Travel: ${parsedTravel}`,
-        category: 'Endemic Travel',
-        matchedText: tkw,
-        isShortform: false,
-        isTypoCorrected: false
-      });
-      break;
     }
   }
 

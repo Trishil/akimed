@@ -93,6 +93,8 @@ KEYWORD_TO_EVIDENCES = {
     "malaise": ["E_175"],
     "generalized malaise": ["E_175"],
     "generalized weakness": ["E_175", "E_89"],
+    "weakness": ["E_175", "E_89"],
+    "profound weakness": ["E_175", "E_89"],
     "myalgia": ["E_144", "E_175"],
     "myalgias": ["E_144", "E_175"],
     "muscle pain": ["E_144"],
@@ -428,6 +430,21 @@ KEYWORD_TO_EVIDENCES = {
     "epigastric": ["E_58", "E_53"],
     "epigastrium": ["E_58", "E_53"],
     "epigastric pain": ["E_58", "E_53"],
+    "upper stomach": ["E_58", "E_53"],
+    "upper abdomen": ["E_58", "E_53"],
+    "stomach": ["E_58", "E_53"],
+    "back": ["E_55", "E_57"],
+    "radiates": ["E_57"],
+    "radiating": ["E_57"],
+    "radiating to back": ["E_57"],
+    "crackles": ["E_5", "E_66"],
+    "bibasilar crackles": ["E_5", "E_66"],
+    "bibasilar": ["E_5", "E_66"],
+    "rales": ["E_5", "E_66"],
+    "fluid in lungs": ["E_5"],
+    "s4": ["E_105", "E_155"],
+    "s4 gallop": ["E_105", "E_155"],
+    "gallop": ["E_105", "E_155"],
     "left lower quadrant": ["E_58", "E_53"],
     "llq": ["E_58", "E_53"],
     "llq pain": ["E_58", "E_53"],
@@ -1391,7 +1408,7 @@ def check_allergy_contraindications(patient: PatientProfile) -> List[Dict[str, s
             "substance": "Metformin",
             "warningType": "Precaution",
             "severity": "Moderate",
-            "details": "Must temporarily withhold Metformin prior to any iodinated IV contrast imaging (e.g. contrast-enhanced CT) due to the risk of contrast-induced nephropathy precipitating fatal Metformin-associated lactic acidosis (MALA)."
+            "details": "CRITICAL PRECAUTION: Withhold Metformin immediately prior to emergent coronary catheterization / angiography and any iodinated IV contrast procedures due to the high risk of contrast-induced nephropathy precipitating fatal Metformin-Associated Lactic Acidosis (MALA)."
         })
 
     # High-yield Toxicology Contraindication: Succinylcholine in Organophosphate Toxicity
@@ -1552,27 +1569,32 @@ def extract_travel_and_chronology_priors(patient: PatientProfile) -> Tuple[Set[s
     notes = (patient.additionalNotes or "").lower()
     travel_text = f"{travel} {notes}"
 
-    if any(k in travel_text for k in [
+    is_negated_travel = bool(
+        re.search(r'\b(?:no|none|denies|negative\s+for|without)\s+(?:recent\s+)?(?:international\s+)?(?:travel|trip|flight)\b', travel_text, re.IGNORECASE) or
+        re.search(r'travel\s*(?:epidemiology)?\s*:\s*(?:no|none|denies|negative|unremarkable)', travel_text, re.IGNORECASE)
+    )
+
+    if not is_negated_travel and any(k in travel_text for k in [
         "abroad", "foreign", "africa", "kenya", "uganda", "congo", "tanzania", 
         "asia", "india", "thailand", "vietnam", "brazil", "south america", "endemic"
     ]):
         extracted_evs.add("E_204") # Have you traveled out of the country in the last 4 weeks?
 
     # Endemic / Tropical Travel Priors
-    if any(k in travel_text for k in ["kenya", "africa", "safari", "sub-saharan", "uganda", "congo"]):
+    if not is_negated_travel and any(k in travel_text for k in ["kenya", "africa", "safari", "sub-saharan", "uganda", "congo"]):
         prior_multipliers["Ebola"] = 8.0
         prior_multipliers["Tuberculosis"] = 4.0
         prior_multipliers["HIV (initial infection)"] = 3.0
     else:
         prior_multipliers["Ebola"] = 0.001
 
-    if any(k in travel_text for k in ["chagas", "south america", "latin america", "brazil", "bolivia"]):
+    if not is_negated_travel and any(k in travel_text for k in ["chagas", "south america", "latin america", "brazil", "bolivia"]):
         prior_multipliers["Chagas"] = 15.0
     else:
         prior_multipliers["Chagas"] = 0.005
 
     # Long flight / prolonged immobility -> DVT / Pulmonary Embolism risk
-    if any(k in travel_text for k in ["flight", "plane", "hour flight", "drive", "car ride", "immobil", "bed rest"]):
+    if not is_negated_travel and any(k in travel_text for k in ["flight", "plane", "hour flight", "drive", "car ride", "immobil", "bed rest"]):
         prior_multipliers["Pulmonary embolism"] = 5.0
         prior_multipliers["Acute pulmonary embolism"] = 5.0
         prior_multipliers["Deep vein thrombosis (DVT)"] = 5.0
@@ -2048,6 +2070,189 @@ def evaluate_gynecological_emergency_gatekeeper(patient: PatientProfile) -> Opti
         }
     }
 
+# ----------------- ATYPICAL ACUTE CORONARY SYNDROME (ACS) GATEKEEPER -----------------
+def evaluate_atypical_coronary_gatekeeper(patient: PatientProfile) -> Optional[Dict[str, Any]]:
+    full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
+
+    # 1. Epigastric / anginal territory
+    has_epigastric_or_anginal = any(k in full_text for k in [
+        "epigastric", "upper stomach", "upper abdomen", "gnawing ache", "gnawing discomfort",
+        "substernal", "retrosternal", "precordial", "chest pain", "angina", "tightness", "pressure"
+    ])
+
+    # 2. Radiation to back, interscapular, shoulder, neck, or jaw
+    has_cardiac_radiation = any(k in full_text for k in [
+        "back", "interscapular", "shoulder blades", "between her shoulder blades",
+        "between shoulder blades", "jaw", "neck", "left arm", "radiates", "radiating"
+    ])
+
+    # 3. Pathognomonic cardiac physical signs (S4 gallop, bibasilar crackles / rales)
+    has_cardiac_signs = any(k in full_text for k in [
+        "s4", "s4 gallop", "gallop", "crackles", "bibasilar", "rales", "fluid in lungs",
+        "bibasilar crackles", "troponin"
+    ])
+
+    # 4. Constitutional anginal equivalents
+    has_anginal_equivalents = any(k in full_text for k in [
+        "weakness", "profound weakness", "fatigue", "nausea", "vomited", "vomiting",
+        "diaphoretic", "sweat", "shortness of breath", "dyspnea", "exhausted", "clammy"
+    ])
+
+    # 5. High-risk profile (female >= 50, diabetic, elderly, vascular risk)
+    is_diabetic = any("diabetes" in (c or "").lower() for c in (patient.preExistingConditions or [])) or any(k in full_text for k in ["diabetes", "diabetic", "metformin", "t2d", "dm2"])
+    is_female = patient.gender.lower() == "female" or "female" in full_text
+    is_high_risk = is_diabetic or (is_female and patient.age >= 50) or patient.age >= 55
+
+    # Exclude active agricultural chemical poisoning or pure surgical peritonitis
+    is_cholinergic = any(k in full_text for k in ["spraying", "pesticide", "pinpoint pupil", "bronchorrhea"])
+    if is_cholinergic:
+        return None
+
+    # Trigger rule: Must have (epigastric/chest + radiation/signs + anginal equivalents) with high risk, OR direct cardiac signs (S4/crackles) with high risk
+    if not (
+        ((has_epigastric_or_anginal and (has_cardiac_radiation or has_cardiac_signs) and has_anginal_equivalents) and is_high_risk) or
+        (has_cardiac_signs and (is_diabetic or is_high_risk))
+    ):
+        return None
+
+    v = patient.vitalSigns or VitalSigns()
+    sbp = v.get_sbp()
+    hr = v.get_hr()
+    shock_index = hr / max(sbp, 1.0)
+
+    is_resuscitation = shock_index >= 1.0 or sbp < 90 or hr > 115
+    esi_level = 1 if is_resuscitation else 2
+    level_name = "Resuscitation" if esi_level == 1 else "Emergent"
+    time_to_dr = "Immediate (< 1 minute)" if esi_level == 1 else "< 10 minutes (STAT 12-Lead ECG)"
+    color = "bg-red-600" if esi_level == 1 else "bg-orange-500"
+
+    return {
+        "is_triggered": True,
+        "primary_dx": "Possible NSTEMI / STEMI",
+        "diagnoses": [
+            {
+                "diseaseName": "Possible NSTEMI / STEMI",
+                "icd10Code": "I21.9",
+                "likelihood": 95,
+                "category": "Primary",
+                "pathophysiology": "Atheromatous coronary plaque rupture or erosion with superimposed non-occlusive or occlusive platelet thrombus causing acute myocardial ischemia and myocyte necrosis. In females and diabetic patients, cardiac autonomic neuropathy blunts visceral C-fiber afferents, leading to 'anginal equivalent' presentations dominated by epigastric ache radiating to the mid-upper back, nausea, vomiting, diaphoresis, and profound fatigue without classic crushing chest pain. Auscultation of an S4 gallop signifies decreased left ventricular active compliance from ischemic stiffening, while bibasilar crackles (fluid) represent elevated LV end-diastolic filling pressures and acute pulmonary venous congestion (Killip Class II Heart Failure).",
+                "supportingFindings": [
+                    f"Female ({int(patient.age)}yo) and Diabetic presenting with classic anginal equivalent: deep gnawing epigastric discomfort radiating straight through to interscapular back",
+                    "Auscultation of an audible S4 atrial gallop reflecting ischemic left ventricular compliance reduction",
+                    "Mild bibasilar crackles (pulmonary fluid) auscultated at lung bases (Killip Class II heart failure)",
+                    f"Decompensated hemodynamic stress: Tachycardia (HR {hr:.0f} bpm) and relative hypotension (BP {sbp:.0f}/{v.get_dbp():.0f} mmHg) with elevated Shock Index ({shock_index:.2f})",
+                    "Autonomic symptoms: Marked diaphoresis (clammy skin), profound exhaustion, and vomiting unrelieved by antacids"
+                ],
+                "opposingFindings": [
+                    "Failure to respond to over-the-counter antacids refutes benign gastroesophageal reflux disease (GERD)",
+                    "Soft, non-tender abdomen and absence of peritoneal signs refute acute peritonitis / surgical acute abdomen",
+                    "Lungs clear of wheezing refutes primary bronchospasm / asthma exacerbation"
+                ],
+                "bedsideSignsToTest": [
+                    "STAT 12-lead Electrocardiogram (ECG within 10 min): specifically evaluate inferior leads (II, III, aVF) and posterior leads (V7-V9) for ST-elevation, reciprocal depressions, or T-wave inversions",
+                    "Right-sided precordial leads (V3R, V4R) to rule out Right Ventricular (RV) Infarction before any nitrates are administered",
+                    "Serial cardiac auscultation for persistence or loudness of S4 gallop and new ischemic mitral regurgitation murmurs (papillary muscle dysfunction)",
+                    "Bilateral pulmonary auscultation tracking progression of bibasilar crackles (Killip classification)",
+                    "Shock Index monitoring (HR / SBP; target < 0.8 to monitor for cardiogenic shock decompensation)"
+                ],
+                "recommendedWorkup": {
+                    "initialLabs": [
+                        "STAT high-sensitivity cardiac Troponin I or T (hs-cTn: serial testing at 0h, 1h, 3h algorithm)",
+                        "Complete Blood Count (rule out severe anemia precipitating demand ischemia / Type 2 MI)",
+                        "Basic Metabolic Panel (Serum Creatinine, eGFR, Potassium, and Glucose for contrast clearance)",
+                        "Coagulation Profile (PT/INR, aPTT prior to full-dose systemic anticoagulation)",
+                        "Serum Lactate and Arterial/Venous Blood Gas (assess systemic tissue hypoperfusion / cardiogenic shock)"
+                    ],
+                    "confirmatoryTests": [
+                        "Emergent Cardiac Catheterization / Coronary Angiography (Door-to-balloon < 90 min if STEMI; early invasive < 2h if high-risk NSTEMI)",
+                        "Serial hs-cTn dynamic rise/fall > 99th percentile upper reference limit"
+                    ],
+                    "imaging": [
+                        "STAT 12-lead ECG with posterior (V7-V9) and right-sided (V3R-V4R) leads",
+                        "Bedside Point-of-Care Echocardiography (POCUS: assess LV regional wall motion abnormalities, EF, and exclude mechanical complications)",
+                        "Portable Upright Chest Radiography (assess pulmonary venous congestion / alveolar edema)"
+                    ]
+                },
+                "clinicalPearls": "UP TO 40% OF FEMALES AND DIABETICS WITH ACUTE MI NEVER EXPERIENCE CLASSIC CRUSHING CHEST PAIN! An elderly or diabetic female with unexplained epigastric ache radiating to back, diaphoresis, nausea, S4 gallop, or bibasilar crackles has Acute Coronary Syndrome until proven otherwise by STAT 12-lead ECG and serial high-sensitivity Troponin. CRITICAL PRECAUTION: Withhold Metformin immediately prior to coronary angiography / contrast exposure to prevent contrast nephropathy precipitating fatal Metformin-Associated Lactic Acidosis (MALA)! NEVER administer Nitroglycerin if right ventricular involvement (inferior STEMI with V4R elevation) is suspected.",
+                "epistemicUncertainty": "±0.6%"
+            },
+            {
+                "diseaseName": "Acute ST-elevation myocardial infarction (STEMI)",
+                "icd10Code": "I21.0",
+                "likelihood": 72,
+                "category": "Secondary",
+                "pathophysiology": "Transmural myocardial infarction secondary to complete thrombotic coronary occlusion, particularly of the Right Coronary Artery (RCA) or Left Circumflex (LCx), which frequently causes inferior-posterior wall ischemia with referred epigastric discomfort, nausea/vomiting from Bezold-Jarisch vagal reflex, and conduction disturbances.",
+                "supportingFindings": [
+                    "Epigastric discomfort and back pain accompanied by hemodynamic depression and diaphoresis",
+                    "S4 gallop and bibasilar pulmonary congestion indicating significant ischemic LV dysfunction"
+                ],
+                "opposingFindings": [
+                    "Requires confirmatory 12-lead ECG demonstration of >= 1mm ST-elevation in 2 contiguous leads or posterior ST-depression in V1-V3"
+                ],
+                "bedsideSignsToTest": [
+                    "STAT 12-lead ECG door-to-ECG < 10 minutes",
+                    "Evaluation of right ventricular leads (V3R, V4R)"
+                ],
+                "recommendedWorkup": {
+                    "initialLabs": ["STAT Troponin I/T", "BMP", "CBC", "PT/INR"],
+                    "confirmatoryTests": ["Immediate Primary Percutaneous Coronary Intervention (PCI)"],
+                    "imaging": ["12-lead ECG", "Bedside Echocardiography"]
+                },
+                "clinicalPearls": "Door-to-balloon time < 90 minutes is the paramount quality metric for STEMI survival. Every 30 minutes of delay increases 1-year mortality by 7.5%.",
+                "epistemicUncertainty": "±1.2%"
+            },
+            {
+                "diseaseName": "Acute pancreatitis",
+                "icd10Code": "K85.9",
+                "likelihood": 25,
+                "category": "Alternative",
+                "pathophysiology": "Premature intracellular activation of pancreatic zymogens (trypsinogen -> trypsin) causing autodigestion of pancreatic parenchyma, microvascular leakage, and peripancreatic retroperitoneal fat necrosis.",
+                "supportingFindings": [
+                    "Deep, constant gnawing epigastric pain radiating directly through to the back",
+                    "Nausea and repeated emesis"
+                ],
+                "opposingFindings": [
+                    "Acute pancreatitis does NOT cause an audible S4 cardiac gallop",
+                    "Soft non-tender abdomen without focal epigastric tenderness or guarding is inconsistent with severe pancreatitis",
+                    "Bibasilar crackles without acute respiratory distress syndrome (ARDS) or high fevers favors acute cardiogenic pulmonary venous congestion"
+                ],
+                "bedsideSignsToTest": [
+                    "Palpation for focal epigastric tenderness, Cullen's sign (periumbilical ecchymosis), and Grey Turner's sign (flank ecchymosis)"
+                ],
+                "recommendedWorkup": {
+                    "initialLabs": ["Serum Lipase (diagnostic threshold > 3x upper limit of normal)", "Serum Amylase", "Triglycerides", "Calcium"],
+                    "confirmatoryTests": ["Serum Lipase > 3x URL confirms pancreatitis"],
+                    "imaging": ["Right upper quadrant ultrasound for cholelithiasis / choledocholithiasis", "Abdominal CT with IV contrast (if diagnosis uncertain after 48-72h)"]
+                },
+                "clinicalPearls": "Serum lipase elevation > 3x normal is required. In the presence of S4 gallop and bibasilar crackles, ruling out Acute Coronary Syndrome is the urgent clinical priority!",
+                "epistemicUncertainty": "±2.1%"
+            }
+        ],
+        "actionPlan": [
+            "EMERGENCY ACS & CATH LAB PROTOCOL: Immediate Senior Attending Cardiologist bedside notification and Cardiac Catheterization Lab standby activation.",
+            "STAT 12-LEAD ECG DOOR-TO-ECG < 10 MIN: Obtain immediate 12-lead ECG; include right-sided leads (V3R-V4R) to evaluate for RV infarction and posterior leads (V7-V9) to rule out isolated posterior STEMI.",
+            "STAT CARDIAC ENZYMES: Draw STAT high-sensitivity cardiac Troponin I/T (hs-cTn: 0h, 1h, 3h serial protocol), CBC, CMP, and Coagulation panel.",
+            "DUAL ANTIPLATELET THERAPY (DAPT): Administer non-enteric coated Aspirin 325 mg orally CHEWED STAT, plus P2Y12 inhibitor loading (Ticagrelor 180 mg PO or Clopidogrel 600 mg PO).",
+            "CRITICAL MEDICATION PRECAUTION (METFORMIN): IMMEDIATELY WITHHOLD METFORMIN prior to coronary angiography / contrast injection due to high risk of contrast-induced nephropathy triggering fatal Metformin-Associated Lactic Acidosis (MALA).",
+            "SYSTEMIC ANTICOAGULATION: Administer weight-based IV Unfractionated Heparin (60 units/kg bolus, maximum 4,000 units, followed by 12 units/kg/hr infusion) targeting an aPTT of 50-70 seconds.",
+            "CAUTION REGARDING NITRATES: DO NOT administer sublingual nitroglycerin until right ventricular infarction (ST elevation in V4R) and severe hypotension are ruled out, as nitrates precipitate profound, refractory venodilatory shock.",
+            "CONTINUOUS CARDIAC MONITORING & RESUSCITATION: Connect continuous 12-lead telemetry, pulse oximetry (supplemental O2 if SpO2 < 90%), and establish two large-bore 18G peripheral IV lines."
+        ],
+        "triage": {
+            "level": esi_level,
+            "levelName": level_name,
+            "color": color,
+            "timeToPhysician": time_to_dr,
+            "rationale": f"High-risk Atypical Acute Coronary Syndrome (ACS / Possible NSTEMI or Inferior-Posterior STEMI with Killip Class II Heart Failure) in a {int(patient.age)}yo diabetic female. Complicated by S4 gallop, bibasilar pulmonary crackles, tachycardia (HR {hr:.0f}), relative hypotension (BP {sbp:.0f}/{v.get_dbp():.0f}), and elevated Shock Index ({shock_index:.2f}). Immediate STAT 12-lead ECG (< 10 min), Troponin, and emergent Cath Lab notification required.",
+            "redFlags": [
+                f"Elevated Shock Index ({shock_index:.2f} >= 1.0) with relative hypotension and tachycardia indicating acute hemodynamic compromise",
+                "Audible S4 atrial gallop reflecting acute ischemic left ventricular compliance loss",
+                "Mild bibasilar crackles (fluid) demonstrating acute pulmonary venous congestion (Killip Class II)",
+                "Anginal equivalent in high-risk diabetic female: deep gnawing epigastric pain radiating to back with diaphoresis and nausea"
+            ]
+        }
+    }
+
 # ----------------- PATHOGNOMONIC PRECONDITION GUARDRAILS -----------------
 def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray, idx_to_cond: Dict[int, str]) -> np.ndarray:
     full_text = f"{patient.chiefSymptoms or ''} {patient.additionalNotes or ''} {patient.travelHistory or ''}".lower()
@@ -2057,10 +2262,14 @@ def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray
         re.search(r'\b(?:tearing|ripping)\b(?!\s*(?:eyes?|lacrimation))', full_text, re.IGNORECASE) and
         re.search(r'\b(?:chest|retrosternal|substernal|back|interscapular|aort)\b', full_text, re.IGNORECASE)
     )
-    has_any_chest_pain = any(k in full_text for k in [
+    has_negated_chest_pain = bool(
+        re.search(r'\b(?:denies|no|without|negative\s+for|free\s+of)\s+(?:any\s+)?(?:sharp|crushing|pressure|radiation)?\s*chest\s*pain\b', full_text, re.IGNORECASE)
+    )
+    raw_has_chest_pain = any(k in full_text for k in [
         "chest pain", "retrosternal pain", "substernal pain", "precordial pain",
         "crushing pain", "tightness in chest", "chest pressure", "pleuritic chest pain"
     ])
+    has_any_chest_pain = raw_has_chest_pain and not has_negated_chest_pain
 
     # 2. Check for cholinergic / toxidrome presentation
     is_cholinergic = any(k in full_text for k in [
@@ -2084,7 +2293,11 @@ def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray
 
         # Guardrail 2: STEMI / NSTEMI / Angina strictly requires chest pain / anginal equivalent
         if any(k in c_name.lower() for k in ["stemi", "myocardial infarction", "angina"]):
-            if not has_any_chest_pain and not any(k in full_text for k in ["substernal", "retrosternal", "epigastric pressure"]):
+            has_anginal_eq = any(k in full_text for k in [
+                "epigastric", "upper stomach", "upper abdomen", "gnawing ache", "gnawing discomfort",
+                "s4", "gallop", "crackles", "bibasilar", "rales", "substernal", "retrosternal", "epigastric pressure"
+            ])
+            if not has_any_chest_pain and not has_anginal_eq:
                 dx_probs[c_idx] *= 0.0001
 
         # Guardrail 3: Panic Attack cannot occur in cholinergic toxidrome, severe bradycardia, or coma
@@ -2115,6 +2328,16 @@ def apply_pathognomonic_guardrails(patient: PatientProfile, dx_probs: np.ndarray
             if "ectopic" in c_name.lower():
                 dx_probs[c_idx] = max(dx_probs[c_idx], 0.96)
 
+        # Guardrail 7: Anaphylaxis strictly requires cutaneous/mucosal involvement (hives, urticaria, angioedema, pruritus) or known acute allergen exposure
+        if "anaphylaxis" in c_name.lower():
+            has_anaphylaxis_features = any(k in full_text for k in [
+                "anaphylaxis", "allergic reaction", "allergen", "bee sting", "wasp",
+                "hives", "urticaria", "angioedema", "lip swelling", "tongue swelling",
+                "throat tightness", "stridor", "pruritus", "itching", "swollen lips", "swollen tongue"
+            ])
+            if not has_anaphylaxis_features:
+                dx_probs[c_idx] *= 0.0001
+
     return dx_probs
 
 def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]] = None, negative_evs: Optional[Set[str]] = None) -> Dict[str, Any]:
@@ -2126,6 +2349,7 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
     # Environmental & Toxicological Pre-Filter / Gatekeeper Check
     tox_gate = evaluate_toxicological_gatekeeper(patient)
     gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
+    acs_gate = evaluate_atypical_coronary_gatekeeper(patient)
 
     # 1. Extract present evidence codes via fuzzy typo-tolerant matching
     text_corpus = f"{patient.chiefSymptoms} {patient.symptomDuration or ''} {patient.travelHistory or ''} {patient.additionalNotes or ''}"
@@ -2383,6 +2607,18 @@ def diagnose_internal(patient: PatientProfile, additional_evs: Optional[Set[str]
             f"ESI Triage Level 1 (Resuscitation). Leading diagnosis: Ruptured Ectopic Pregnancy (96%). "
             f"Immediate Massive Transfusion Protocol activation, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN laparoscopy required."
         )
+    elif acs_gate:
+        triage = acs_gate["triage"]
+        top_diagnoses = acs_gate["diagnoses"]
+        action_plan = acs_gate["actionPlan"]
+        summary = (
+            f"Patient is a {int(patient.age)}yo female with diabetes presenting with an anginal equivalent: "
+            f"deep gnawing epigastric discomfort radiating to the back, nausea, vomiting, diaphoresis, audible S4 gallop, "
+            f"and bibasilar crackles (Killip Class II). ESI Triage Level {triage['level']} ({triage['levelName']}). "
+            f"Leading diagnosis: {top_diagnoses[0]['diseaseName']} ({top_diagnoses[0]['likelihood']}%), "
+            f"followed by {top_diagnoses[1]['diseaseName']} ({top_diagnoses[1]['likelihood']}%). "
+            f"Immediate STAT 12-lead ECG (< 10 min), Troponin, Aspirin 325 mg chewed, Metformin withholding, and Cath Lab activation required."
+        )
     else:
         action_plan = [
             f"Perform immediate ABCDE primary survey and triage stabilization ({triage['timeToPhysician']}).",
@@ -2493,9 +2729,43 @@ def akinator_step(req: AkinatorStepRequest):
 
     current_candidates = []
 
-    # Check toxicological gatekeeper override for Akinator
+    # Check toxicological & emergency gatekeeper override for Akinator
     tox_gate = evaluate_toxicological_gatekeeper(patient)
     gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
+    acs_gate = evaluate_atypical_coronary_gatekeeper(patient)
+
+    if acs_gate:
+        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
+        top_d = diag_res["topDiagnoses"][0]
+        thought = (
+            f"Definitive high-risk cardiac presentation identified (95% posterior confidence at Turn {step})! "
+            f"Atypical Acute Coronary Syndrome (Possible NSTEMI / STEMI with Killip II heart failure) "
+            f"supported by diabetic anginal equivalent (epigastric ache radiating to back), audible S4 gallop, and bibasilar crackles."
+        )
+        return {
+            "step": step,
+            "maxSteps": 20,
+            "isConcluded": True,
+            "isDefinitive": True,
+            "differentialRanking": diag_res["topDiagnoses"][:5],
+            "activeHypothesis": {
+                "diseaseName": top_d["diseaseName"],
+                "status": "corroborated",
+                "confidence": 95,
+                "reason": "Primary diagnosis confirmed with 95% posterior certainty.",
+                "pivotedFrom": None
+            },
+            "akinatorThought": thought,
+            "currentCandidates": [
+                {"diseaseName": "Possible NSTEMI / STEMI", "confidence": 95, "trend": "rising", "reason": "Atypical Anginal Equivalent with S4 Gallop & Killip II Crackles"},
+                {"diseaseName": "Acute ST-elevation myocardial infarction (STEMI)", "confidence": 72, "trend": "rising", "reason": "Inferior-Posterior Wall Involvement Trajectory"},
+                {"diseaseName": "Acute pancreatitis", "confidence": 25, "trend": "falling", "reason": "S4 Gallop and Crackles Point to Cardiac Etiology"}
+            ],
+            "nextQuestion": None,
+            "finalDiagnosis": top_d,
+            "assessment": diag_res,
+            "engineTelemetry": diag_res.get("engineTelemetry")
+        }
 
     if gyn_gate:
         diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)

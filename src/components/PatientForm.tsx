@@ -70,12 +70,12 @@ export const PatientForm: React.FC<PatientFormProps> = ({
     return parseClinicalSearchQuery(patient.chiefSymptoms || '');
   }, [patient.chiefSymptoms]);
 
-  // Automatically synchronize parsed demographics and travel if detected in the search query
+  // Automatically synchronize parsed demographics, vitals, PMH, and allergies if detected in the search query
   useEffect(() => {
     if (!patient.chiefSymptoms) return;
 
     setPatient((prev) => {
-      const updated = applyParsedSearchToPatientProfile(prev, parseResult);
+      const updated = applyParsedSearchToPatientProfile(prev, parseResult, patient.chiefSymptoms);
       // Only trigger state update if actual properties changed to prevent rerender loops
       if (
         (parseResult.parsedDemographics.age && updated.age !== prev.age) ||
@@ -84,7 +84,14 @@ export const PatientForm: React.FC<PatientFormProps> = ({
         (parseResult.parsedTravel && updated.travelHistory !== prev.travelHistory) ||
         (parseResult.parsedDuration && updated.symptomDuration !== prev.symptomDuration) ||
         (parseResult.parsedVitals.temperatureC && updated.vitalSigns?.temperatureC !== prev.vitalSigns?.temperatureC) ||
-        (parseResult.parsedVitals.heartRate && updated.vitalSigns?.heartRate !== prev.vitalSigns?.heartRate)
+        (parseResult.parsedVitals.heartRate && updated.vitalSigns?.heartRate !== prev.vitalSigns?.heartRate) ||
+        (parseResult.parsedVitals.bpSystolic && updated.vitalSigns?.bpSystolic !== prev.vitalSigns?.bpSystolic) ||
+        (parseResult.parsedVitals.spo2 && updated.vitalSigns?.spo2 !== prev.vitalSigns?.spo2) ||
+        (parseResult.parsedVitals.respiratoryRate && updated.vitalSigns?.respiratoryRate !== prev.vitalSigns?.respiratoryRate) ||
+        (JSON.stringify(updated.preExistingConditions) !== JSON.stringify(prev.preExistingConditions)) ||
+        (JSON.stringify(updated.allergies) !== JSON.stringify(prev.allergies)) ||
+        (JSON.stringify(updated.currentMedications) !== JSON.stringify(prev.currentMedications)) ||
+        (updated.additionalNotes !== prev.additionalNotes)
       ) {
         return updated;
       }
