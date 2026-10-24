@@ -263,9 +263,16 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                       Live Differential Probability Shift
                     </h4>
                   </div>
-                  <span className="text-[11px] font-medium text-zinc-500">
-                    Adjusts in real-time with each response
-                  </span>
+                  {akinatorState.engineTelemetry ? (
+                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-zinc-900 text-emerald-400 border border-zinc-700 font-bold flex items-center gap-1 shadow-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      MPS GPU: {akinatorState.engineTelemetry.latencyMs}ms ({akinatorState.engineTelemetry.monteCarloPasses || 24}-Pass MC)
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      Adjusts in real-time with each response
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-3">

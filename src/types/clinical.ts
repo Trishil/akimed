@@ -81,6 +81,7 @@ export interface DifferentialItem {
     imaging?: string[];
   };
   clinicalPearls: string; // high-yield MBBS takeaway
+  epistemicUncertainty?: string; // e.g. "±0.6%"
 }
 
 export interface AllergyWarning {
@@ -97,6 +98,9 @@ export interface EngineTelemetry {
   latencyMs?: number;
   hardwareAccelerator?: string;
   modelScale?: string;
+  monteCarloPasses?: number;
+  epistemicUncertainty?: string;
+  gpuExecutionTimeMs?: number;
 }
 
 export interface DiagnosticAssessment {
@@ -152,6 +156,7 @@ export interface AkinatorState {
   differentialRanking?: DifferentialItem[];
   assessment?: DiagnosticAssessment;
   akinatorThought: string;
+  engineTelemetry?: EngineTelemetry;
 }
 
 export interface PrebuiltVignette {
