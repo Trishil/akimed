@@ -653,3 +653,4 @@ export function normalizeDiseaseId(nameOrQuery: string): string {
 
   return 'acute_ischemic_stroke';
 }
+

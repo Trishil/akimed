@@ -1,40 +1,129 @@
 @import "tailwindcss";
 
+@theme {
+  /* ---------------------------------------------------- */
+  /* AUTHENTIC NEOBRUTALISM UI COLOR PALETTE & TOKENS     */
+  /* High-Contrast, Saturated, Zero-Blur Hard Shadows     */
+  /* ---------------------------------------------------- */
+
+  /* Base Canvas & Surfaces */
+  --color-neo-bg: #FAF8F5;
+  --color-neo-white: #FFFFFF;
+  --color-neo-black: #000000;
+  --color-neo-border: #000000;
+  --color-neo-muted: #F4F1EA;
+
+  /* Primary Violets & Purples (Neobrutalism Signature) */
+  --color-neo-purple: #8B5CF6;
+  --color-neo-purple-hover: #7C3AED;
+  --color-neo-purple-light: #EDE9FE;
+  --color-neo-purple-dark: #4C1D95;
+
+  /* Primary Electric & Royal Blues */
+  --color-neo-blue: #3B82F6;
+  --color-neo-blue-hover: #2563EB;
+  --color-neo-blue-light: #DBEAFE;
+  --color-neo-blue-dark: #1E3A8A;
+
+  /* High-Contrast Vibrant Accents */
+  --color-neo-green: #00F5A0;
+  --color-neo-green-hover: #00D689;
+  --color-neo-green-light: #DCFCE7;
+  --color-neo-green-dark: #064E3B;
+
+  --color-neo-yellow: #FFC900;
+  --color-neo-yellow-hover: #E5B400;
+  --color-neo-yellow-light: #FEF9C3;
+  --color-neo-yellow-dark: #713F12;
+
+  --color-neo-pink: #FF90E8;
+  --color-neo-pink-hover: #E07CD0;
+  --color-neo-pink-light: #FCE7F3;
+  --color-neo-pink-dark: #831843;
+
+  --color-neo-orange: #FF6B00;
+  --color-neo-orange-hover: #E05E00;
+  --color-neo-orange-light: #FFEDD5;
+  --color-neo-orange-dark: #7C2D12;
+
+  --color-neo-red: #FF4949;
+  --color-neo-red-hover: #E03535;
+  --color-neo-red-light: #FEE2E2;
+  --color-neo-red-dark: #7F1D1D;
+
+  /* Zero-Blur Hard Drop Shadows */
+  --shadow-neo-xs: 1.5px 1.5px 0px 0px #000000;
+  --shadow-neo-sm: 2.5px 2.5px 0px 0px #000000;
+  --shadow-neo: 4px 4px 0px 0px #000000;
+  --shadow-neo-md: 4px 4px 0px 0px #000000;
+  --shadow-neo-lg: 6px 6px 0px 0px #000000;
+  --shadow-neo-xl: 8px 8px 0px 0px #000000;
+}
+
 @layer base {
   body {
     background-color: #FAF8F5;
-    color: #18181B;
+    color: #000000;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 }
 
-/* Tactile Physical Studio Shadows (Akademia Style) */
+/* ---------------------------------------------------- */
+/* NEOBRUTALIST TACTILE CLASSES & INTERACTIONS          */
+/* ---------------------------------------------------- */
+
+/* Pure Solid Black Zero-Blur Shadows */
 .shadow-tactile {
-  box-shadow: 4px 4px 0px 0px #18181B;
+  box-shadow: 4px 4px 0px 0px #000000;
 }
 
 .shadow-tactile-sm {
-  box-shadow: 2px 2px 0px 0px #18181B;
+  box-shadow: 2.5px 2.5px 0px 0px #000000;
+}
+
+.shadow-tactile-xs {
+  box-shadow: 1.5px 1.5px 0px 0px #000000;
 }
 
 .shadow-tactile-lg {
-  box-shadow: 6px 6px 0px 0px #18181B;
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.shadow-tactile-xl {
+  box-shadow: 8px 8px 0px 0px #000000;
+}
+
+/* Neobrutalism Interactive Button Movement */
+.neo-btn {
+  border: 2.5px solid #000000;
+  box-shadow: 3.5px 3.5px 0px 0px #000000;
+  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.neo-btn:hover {
+  transform: translate(-1.5px, -1.5px);
+  box-shadow: 5px 5px 0px 0px #000000;
+}
+
+.neo-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #000000;
 }
 
 .shadow-tactile-hover:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 6px 6px 0px 0px #18181B;
+  box-shadow: 6px 6px 0px 0px #000000;
 }
 
 .shadow-tactile-hover:active {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px #18181B;
+  box-shadow: 1.5px 1.5px 0px 0px #000000;
 }
 
 /* Organic Paper Speckle Texture - Tactile Dot Grid */
 .bg-paper-pattern {
   background-color: #FAF8F5;
-  background-image: radial-gradient(circle, #b8b5aa 2px, transparent 2px), radial-gradient(circle, #b8b5aa 2px, transparent 2px);
+  background-image: radial-gradient(circle, #000000 1.25px, transparent 1.25px), radial-gradient(circle, #000000 1.25px, transparent 1.25px);
   background-size: 28px 28px;
   background-position: 0 0, 14px 14px;
 }
@@ -51,11 +140,24 @@
   left: -4px;
   right: -4px;
   bottom: 4px;
-  height: 40%;
-  background: #FEF08A;
+  height: 42%;
+  background: #FFC900;
   z-index: -1;
-  border-radius: 4px;
+  border-radius: 2px;
   transform: rotate(-0.8deg);
+}
+
+.highlighter-purple::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 4px;
+  height: 42%;
+  background: #EDE9FE;
+  z-index: -1;
+  border-radius: 2px;
+  transform: rotate(0.6deg);
 }
 
 .highlighter-mint::before {
@@ -64,10 +166,10 @@
   left: -4px;
   right: -4px;
   bottom: 4px;
-  height: 40%;
-  background: #A7F3D0;
+  height: 42%;
+  background: #00F5A0;
   z-index: -1;
-  border-radius: 4px;
+  border-radius: 2px;
   transform: rotate(0.6deg);
 }
 

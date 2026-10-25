@@ -72,22 +72,22 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
         <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-indigo-950/15">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-tactile-sm border-2 border-indigo-950">
-                <Brain className="w-6 h-6 text-cyan-200 font-bold" />
+              <div className="w-12 h-12 rounded-2xl bg-[#8B5CF6] text-white flex items-center justify-center font-bold border-[2.5px] border-black shadow-[2.5px_2.5px_0px_0px_#000000]">
+                <Brain className="w-6 h-6 text-white stroke-[2.5]" />
               </div>
               <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00F5A0] opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#00F5A0] border border-black"></span>
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-black text-zinc-900 tracking-tight">Dr. Akinator</h3>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black bg-indigo-100 text-indigo-950 border-2 border-indigo-950 shadow-tactile-sm">
+                <h3 className="text-lg font-black text-black tracking-tight">Dr. Akinator</h3>
+                <span className="text-[11px] px-3 py-0.5 rounded-full font-black bg-[#EDE9FE] text-[#4C1D95] border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                   Discriminator Policy Head
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 font-medium">
+              <p className="text-xs text-zinc-600 font-bold">
                 {isConcluded 
                   ? (isDefinitive ? 'Definitive Diagnostic Certainty Met (≥95%)' : `Differential Spectrum Finalized (${history.length} Turns)`) 
                   : `Inquiry Turn ${history.length + 1} • Goal: ≥95% Diagnostic Certainty`}
@@ -98,23 +98,23 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onRestart}
-              className="px-3.5 py-1.5 rounded-full border-2 border-indigo-950 bg-white hover:bg-indigo-50 text-xs font-bold text-indigo-950 flex items-center gap-1.5 transition-all shadow-tactile-sm cursor-pointer"
+              className="px-4 py-2 rounded-full border-2 border-black bg-white hover:bg-[#FEE2E2] text-xs font-black text-black flex items-center gap-1.5 transition-all shadow-[2.5px_2.5px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_#000000] active:translate-x-[1.5px] active:translate-y-[1.5px] active:shadow-[1px_1px_0px_0px_#000000] cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Restart Inquiry</span>
             </button>
           </div>
         </div>
 
-        {/* Dr. Akinator Thinking Bubble - Royal Blue & Purple Gradient Accent */}
-        <div className="bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-blue-50/90 border-2 border-indigo-900/30 rounded-2xl p-4 mb-6 relative shadow-tactile-sm">
+        {/* Dr. Akinator Thinking Bubble - Authentic Neobrutalism Purple Accent */}
+        <div className="bg-[#EDE9FE] border-[2.5px] border-black rounded-2xl p-4.5 mb-6 relative shadow-[3.5px_3.5px_0px_0px_#000000]">
           <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+            <Sparkles className="w-5 h-5 text-[#8B5CF6] shrink-0 mt-0.5 stroke-[2.5]" />
             <div>
-              <span className="text-xs font-black text-indigo-950 uppercase tracking-wider block mb-1">
+              <span className="text-xs font-black text-black uppercase tracking-wider block mb-1">
                 Akinator Entropy Reduction & Reasoning Head
               </span>
-              <p className="text-xs sm:text-sm text-indigo-950 italic leading-relaxed font-serif">
+              <p className="text-xs sm:text-sm text-black font-bold leading-relaxed">
                 "{akinatorState.akinatorThought || 'Evaluating presentation and calculating cross-symptom attention weights...'}"
               </p>
             </div>
@@ -123,47 +123,47 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
 
         {/* Active Working Hypothesis Banner */}
         {akinatorState.activeHypothesis && (
-          <div className={`border-2 border-zinc-900 rounded-2xl p-4 mb-5 shadow-tactile-sm transition-all ${
+          <div className={`border-[2.5px] border-black rounded-2xl p-4 mb-5 shadow-[3px_3px_0px_0px_#000000] transition-all ${
             akinatorState.activeHypothesis.status === 'refuted'
-              ? 'bg-rose-50 border-rose-900'
+              ? 'bg-[#FEE2E2]'
               : akinatorState.activeHypothesis.status === 'corroborated'
-              ? 'bg-emerald-50 border-emerald-900'
+              ? 'bg-[#DCFCE7]'
               : akinatorState.activeHypothesis.status === 'pursuing'
-              ? 'bg-amber-50/70 border-amber-900'
-              : 'bg-indigo-50 border-indigo-900'
+              ? 'bg-[#FEF9C3]'
+              : 'bg-[#EDE9FE]'
           }`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-xl border-2 border-zinc-900 shrink-0 ${
+                <div className={`p-2 rounded-xl border-2 border-black shrink-0 shadow-[1.5px_1.5px_0px_0px_#000000] ${
                   akinatorState.activeHypothesis.status === 'refuted'
-                    ? 'bg-rose-200 text-rose-950'
+                    ? 'bg-[#FF4949] text-white'
                     : akinatorState.activeHypothesis.status === 'corroborated'
-                    ? 'bg-emerald-200 text-emerald-950'
+                    ? 'bg-[#00F5A0] text-black'
                     : akinatorState.activeHypothesis.status === 'pursuing'
-                    ? 'bg-amber-200 text-amber-950'
-                    : 'bg-indigo-200 text-indigo-950'
+                    ? 'bg-[#FFC900] text-black'
+                    : 'bg-[#8B5CF6] text-white'
                 }`}>
-                  <Target className="w-5 h-5" />
+                  <Target className="w-5 h-5 stroke-[2.5]" />
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-xs font-black uppercase tracking-wider text-zinc-900">
+                    <span className="text-xs font-black uppercase tracking-wider text-black">
                       {akinatorState.activeHypothesis.status === 'refuted' ? 'Hypothesis Refuted & Pivoted' :
                        akinatorState.activeHypothesis.status === 'corroborated' ? 'Hypothesis Corroborated' :
                        akinatorState.activeHypothesis.status === 'pursuing' ? 'Active Hypothesis Pursuit' : 'Differential Screening Phase'}
                     </span>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-white border-2 border-zinc-900 shadow-tactile-sm">
+                    <span className="px-3 py-0.5 rounded-full text-xs font-black bg-white text-black border-2 border-black shadow-[1.5px_1.5px_0px_0px_#000000]">
                       {akinatorState.activeHypothesis.status === 'exploring'
                         ? `Differential Pool (Leading: ${akinatorState.activeHypothesis.diseaseName.split('/')[0].trim()} ${akinatorState.activeHypothesis.confidence}%)`
                         : `${akinatorState.activeHypothesis.diseaseName} (${akinatorState.activeHypothesis.confidence}%)`}
                     </span>
                     {akinatorState.activeHypothesis.pivotedFrom && (
-                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-900 border border-rose-300">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-[#FEE2E2] text-[#7F1D1D] border-2 border-black">
                         Pivoted from {akinatorState.activeHypothesis.pivotedFrom}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-zinc-700 font-medium leading-relaxed">
+                  <p className="text-xs text-black font-bold leading-relaxed">
                     {akinatorState.activeHypothesis.reason}
                   </p>
                 </div>
@@ -176,27 +176,27 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
         {!isConcluded && currentQuestion && (
           <div className="space-y-6">
             {/* Question Card */}
-            <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 sm:p-7 shadow-tactile relative">
+            <div className="bg-white border-[2.5px] border-black rounded-3xl p-6 sm:p-7 shadow-[5px_5px_0px_0px_#000000] relative">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full bg-yellow-200/90 text-zinc-950 border-2 border-zinc-900 flex items-center gap-1.5 shadow-tactile-sm">
-                  <Zap className="w-3.5 h-3.5 text-zinc-950" />
+                <span className="text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-full bg-[#FFC900] text-black border-2 border-black flex items-center gap-1.5 shadow-[2px_2px_0px_0px_#000000]">
+                  <Zap className="w-3.5 h-3.5 text-black stroke-[2.5]" />
                   Discriminator: {currentQuestion.category}
                 </span>
-                <span className="text-xs font-bold text-zinc-500">
+                <span className="text-xs font-black text-black">
                   Question {history.length + 1} / {maxSteps}
                 </span>
               </div>
 
-              <h2 className="text-xl sm:text-2xl font-black text-zinc-900 mb-4 leading-snug">
+              <h2 className="text-xl sm:text-2xl font-black text-black mb-4 leading-snug">
                 {currentQuestion.questionText}
               </h2>
 
               {/* Clinical Rationale Box */}
               {currentQuestion.clinicalRationale && (
-                <div className="bg-[#FAF8F5] border-2 border-zinc-900/15 rounded-xl p-3.5 text-xs text-zinc-700 flex items-start gap-2.5 mb-6">
-                  <Info className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                <div className="bg-[#FAF8F5] border-2 border-black rounded-xl p-3.5 text-xs text-black flex items-start gap-2.5 mb-6 shadow-inner">
+                  <Info className="w-4 h-4 text-[#8B5CF6] shrink-0 mt-0.5 stroke-[2.5]" />
                   <div>
-                    <span className="font-bold text-zinc-900 block mb-0.5">
+                    <span className="font-black text-black block mb-0.5">
                       MBBS Diagnostic Discriminator:
                     </span>
                     {currentQuestion.clinicalRationale}
@@ -204,51 +204,51 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                 </div>
               )}
 
-              {/* Answer Options Buttons - Tactile Akademia Likert Pills */}
+              {/* Answer Options Buttons - Authentic Neobrutalism Likert Buttons */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
                 <button
                   disabled={isLoading}
                   onClick={() => onAnswerQuestion('yes')}
-                  className="py-3 px-3 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-xs border-2 border-zinc-900 shadow-tactile-sm shadow-tactile-hover transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
+                  className="py-3.5 px-3 rounded-2xl bg-[#00F5A0] hover:bg-[#00D689] text-black font-black text-xs border-[2.5px] border-black shadow-[3.5px_3.5px_0px_0px_#000000] hover:translate-x-[-1.5px] hover:translate-y-[-1.5px] hover:shadow-[5px_5px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="text-sm">Yes</span>
-                  <span className="text-[10px] font-bold text-emerald-950 opacity-80">Present / Confirmed</span>
+                  <span className="text-sm font-black">Yes</span>
+                  <span className="text-[10px] font-black text-[#064E3B]">Present / Confirmed</span>
                 </button>
 
                 <button
                   disabled={isLoading}
                   onClick={() => onAnswerQuestion('probably_yes')}
-                  className="py-3 px-3 rounded-2xl bg-emerald-100 hover:bg-emerald-200 text-emerald-950 font-bold text-xs border-2 border-zinc-900 shadow-tactile-sm shadow-tactile-hover transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
+                  className="py-3.5 px-3 rounded-2xl bg-[#DCFCE7] hover:bg-[#BBF7D0] text-[#064E3B] font-black text-xs border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="text-sm">Probably Yes</span>
-                  <span className="text-[10px] font-medium text-emerald-900">Likely / Partial</span>
+                  <span className="text-sm font-black">Probably Yes</span>
+                  <span className="text-[10px] font-bold text-[#064E3B]">Likely / Partial</span>
                 </button>
 
                 <button
                   disabled={isLoading}
                   onClick={() => onAnswerQuestion('unsure')}
-                  className="py-3 px-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold text-xs border-2 border-zinc-900 shadow-tactile-sm shadow-tactile-hover transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
+                  className="py-3.5 px-3 rounded-2xl bg-white hover:bg-[#F4F1EA] text-black font-black text-xs border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="text-sm">Don't Know</span>
-                  <span className="text-[10px] font-medium text-zinc-600">Not assessed</span>
+                  <span className="text-sm font-black">Don't Know</span>
+                  <span className="text-[10px] font-bold text-zinc-600">Not assessed</span>
                 </button>
 
                 <button
                   disabled={isLoading}
                   onClick={() => onAnswerQuestion('probably_no')}
-                  className="py-3 px-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-950 font-bold text-xs border-2 border-zinc-900 shadow-tactile-sm shadow-tactile-hover transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
+                  className="py-3.5 px-3 rounded-2xl bg-[#FEE2E2] hover:bg-[#FECACA] text-[#7F1D1D] font-black text-xs border-2 border-black shadow-[2.5px_2.5px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4px_4px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="text-sm">Probably Not</span>
-                  <span className="text-[10px] font-medium text-rose-900">Unlikely</span>
+                  <span className="text-sm font-black">Probably Not</span>
+                  <span className="text-[10px] font-bold text-[#7F1D1D]">Unlikely</span>
                 </button>
 
                 <button
                   disabled={isLoading}
                   onClick={() => onAnswerQuestion('no')}
-                  className="py-3 px-3 rounded-2xl bg-rose-400 hover:bg-rose-300 text-zinc-950 font-black text-xs border-2 border-zinc-900 shadow-tactile-sm shadow-tactile-hover transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
+                  className="py-3.5 px-3 rounded-2xl bg-[#FF4949] hover:bg-[#E03535] text-white font-black text-xs border-[2.5px] border-black shadow-[3.5px_3.5px_0px_0px_#000000] hover:translate-x-[-1.5px] hover:translate-y-[-1.5px] hover:shadow-[5px_5px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-50"
                 >
-                  <span className="text-sm">No</span>
-                  <span className="text-[10px] font-bold text-rose-950 opacity-80">Denied / Absent</span>
+                  <span className="text-sm font-black">No</span>
+                  <span className="text-[10px] font-bold text-white opacity-90">Denied / Absent</span>
                 </button>
               </div>
             </div>

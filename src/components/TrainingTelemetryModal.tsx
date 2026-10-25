@@ -99,24 +99,24 @@ export const TrainingTelemetryModal: React.FC<TrainingTelemetryModalProps> = ({ 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-zinc-950/70 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div 
-        className="relative w-full max-w-5xl bg-[#FAF8F5] border-2 border-zinc-900 rounded-3xl shadow-tactile-lg overflow-hidden flex flex-col max-h-[92vh]"
+        className="relative w-full max-w-5xl bg-[#FAF8F5] border-[2.5px] border-black rounded-3xl shadow-[8px_8px_0px_0px_#000000] overflow-hidden flex flex-col max-h-[92vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-zinc-900 bg-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-black bg-white">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-zinc-900 text-yellow-300 border-2 border-zinc-900 flex items-center justify-center shadow-tactile-sm">
-              <Terminal className="w-5 h-5 text-teal-400" />
+            <div className="w-11 h-11 rounded-2xl bg-[#8B5CF6] text-white border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_#000000]">
+              <Terminal className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-serif font-black text-zinc-900 tracking-tight">
+                <h2 className="text-lg sm:text-xl font-serif font-black text-black tracking-tight">
                   AkiMed 212.9M Attention Transformer Deep Telemetry
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-950 border border-emerald-400 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#00F5A0] text-black border-2 border-black flex items-center gap-1 shadow-[1px_1px_0px_0px_#000000]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></span>
                   MPS GPU Active
                 </span>
               </div>
@@ -127,59 +127,59 @@ export const TrainingTelemetryModal: React.FC<TrainingTelemetryModalProps> = ({ 
           </div>
           <button 
             onClick={onClose}
-            className="w-9 h-9 rounded-full border-2 border-zinc-900 flex items-center justify-center text-zinc-700 hover:bg-zinc-100 transition-colors shadow-tactile-sm cursor-pointer"
+            className="w-9 h-9 rounded-full border-2 border-black flex items-center justify-center text-black hover:bg-[#FEE2E2] transition-all shadow-[2px_2px_0px_0px_#000000] cursor-pointer active:translate-x-0.5 active:translate-y-0.5"
           >
-            <X className="w-5 h-5 text-zinc-900" />
+            <X className="w-5 h-5 text-black" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b-2 border-zinc-900/10 bg-[#FAF8F5]">
+        <div className="flex flex-wrap items-center gap-2 px-6 py-3 border-b-2 border-black bg-[#FAF8F5]">
           <button
             onClick={() => setActiveTab('architecture')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-zinc-900 cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-black cursor-pointer ${
               activeTab === 'architecture'
-                ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100'
+                ? 'bg-[#8B5CF6] text-white shadow-[2.5px_2.5px_0px_0px_#000000]'
+                : 'bg-white text-black hover:bg-zinc-100 shadow-[1px_1px_0px_0px_#000000]'
             }`}
           >
-            <Binary className="w-3.5 h-3.5 text-teal-400" />
+            <Binary className={`w-3.5 h-3.5 ${activeTab === 'architecture' ? 'text-white' : 'text-[#8B5CF6]'}`} />
             <span>212.9M Architecture & Tensor Algebra</span>
           </button>
 
           <button
             onClick={() => setActiveTab('mastery')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-zinc-900 cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-black cursor-pointer ${
               activeTab === 'mastery'
-                ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100'
+                ? 'bg-[#FFC900] text-black shadow-[2.5px_2.5px_0px_0px_#000000]'
+                : 'bg-white text-black hover:bg-zinc-100 shadow-[1px_1px_0px_0px_#000000]'
             }`}
           >
-            <Award className="w-3.5 h-3.5 text-yellow-400" />
+            <Award className="w-3.5 h-3.5 text-black" />
             <span>Clinical AI Mastery (97.43%)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-zinc-900 cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-black cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100'
+                ? 'bg-[#3B82F6] text-white shadow-[2.5px_2.5px_0px_0px_#000000]'
+                : 'bg-white text-black hover:bg-zinc-100 shadow-[1px_1px_0px_0px_#000000]'
             }`}
           >
-            <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />
+            <BarChart3 className={`w-3.5 h-3.5 ${activeTab === 'history' ? 'text-white' : 'text-[#3B82F6]'}`} />
             <span>Convergence Logs ({history.length} Epochs)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('adversarial')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-zinc-900 cursor-pointer ${
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-full transition-all border-2 border-black cursor-pointer ${
               activeTab === 'adversarial'
-                ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                : 'bg-white text-zinc-700 hover:bg-zinc-100'
+                ? 'bg-[#00F5A0] text-black shadow-[2.5px_2.5px_0px_0px_#000000]'
+                : 'bg-white text-black hover:bg-zinc-100 shadow-[1px_1px_0px_0px_#000000]'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <ShieldCheck className="w-3.5 h-3.5 text-black" />
             <span>25,000-Scenario Stress Cert</span>
           </button>
         </div>

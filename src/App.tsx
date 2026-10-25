@@ -348,20 +348,20 @@ export default function App() {
           {/* Circular Stamp Graphic Badge (Akademia Reference Style) - Enlarged */}
           <div className="absolute -top-6 right-2 sm:right-6 pointer-events-none select-none hidden md:block">
             <div className="relative w-40 h-40 flex items-center justify-center">
-              <svg className="w-full h-full animate-spin-slow text-indigo-900" viewBox="0 0 120 120">
+              <svg className="w-full h-full animate-spin-slow text-black" viewBox="0 0 120 120">
                 <path
                   id="circlePath"
                   d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
                   fill="transparent"
                 />
-                <text className="text-[7px] font-black uppercase tracking-[0.24em] fill-indigo-950">
+                <text className="text-[7px] font-black uppercase tracking-[0.24em] fill-black">
                   <textPath href="#circlePath">
                     • AKIMED 16-LAYER TRANSFORMER • 212.9M PARAMETERS • APPLE MPS •
                   </textPath>
                 </text>
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-indigo-50 border-2 border-indigo-900 flex items-center justify-center shadow-tactile-sm">
+                <div className="w-16 h-16 rounded-full bg-[#FEF9C3] border-2 border-black flex items-center justify-center shadow-[3px_3px_0px_0px_#000000]">
                   <span className="text-3xl">🩺</span>
                 </div>
               </div>
@@ -369,41 +369,41 @@ export default function App() {
           </div>
 
           <div className="max-w-3xl">
-            {/* Inline Capsule Headline (Akademia Reference Style) */}
-            <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tight leading-[1.15] mb-4">
+            {/* Inline Capsule Headline (Authentic Neobrutalism UI) */}
+            <h1 className="text-3xl sm:text-5xl font-black text-black tracking-tight leading-[1.15] mb-4">
               Find{' '}
-              <span className="inline-flex items-center mx-1 px-3 py-0.5 rounded-full bg-blue-100 text-blue-950 text-xs sm:text-sm font-black border-2 border-indigo-950 align-middle shadow-tactile-sm">
+              <span className="inline-flex items-center mx-1 px-3 py-0.5 rounded-full bg-[#DBEAFE] text-[#1E3A8A] text-xs sm:text-sm font-black border-2 border-black align-middle shadow-[2.5px_2.5px_0px_0px_#000000]">
                 212.9M AI
               </span>{' '}
               differential{' '}
               <span className="highlighter-stroke">diagnoses</span> & triage{' '}
-              <span className="inline-flex items-center mx-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-950 text-xs sm:text-sm font-black border-2 border-indigo-950 align-middle shadow-tactile-sm">
+              <span className="inline-flex items-center mx-1 px-2.5 py-0.5 rounded-full bg-[#EDE9FE] text-[#4C1D95] text-xs sm:text-sm font-black border-2 border-black align-middle shadow-[2.5px_2.5px_0px_0px_#000000]">
                 ⚡ MPS GPU
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-zinc-600 font-medium leading-relaxed max-w-2xl">
+            <p className="text-sm sm:text-base text-zinc-700 font-medium leading-relaxed max-w-2xl">
               An evidence-based diagnostic Akinator and 5-tier ESI emergency triage engine powered by a 16-Layer Pre-LN Clinical Attention Transformer (212.9M weights). Authentic 32-pass Monte Carlo attention ensembling executed natively on Apple Silicon Metal shaders.
             </p>
 
-            {/* Quick Stats Pill Strip - Royal Blue & Purple Infused */}
+            {/* Quick Stats Pill Strip - Neobrutalism Saturated Badges */}
             <div className="flex flex-wrap items-center gap-2.5 mt-5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border-2 border-indigo-950 text-xs font-bold text-zinc-800 shadow-tactile-sm">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border-2 border-black text-xs font-black text-black shadow-[2.5px_2.5px_0px_0px_#000000]">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#3B82F6] border border-black animate-pulse"></span>
                 <span>16-Layer Transformer (Pre-LN / 212.9M Params)</span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border-2 border-indigo-950 text-xs font-bold text-zinc-800 shadow-tactile-sm">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border-2 border-black text-xs font-black text-black shadow-[2.5px_2.5px_0px_0px_#000000]">
                 <span>Top-3 Accuracy:</span>
-                <span className="text-indigo-600 font-black">99.82%</span>
+                <span className="text-[#8B5CF6] font-black">99.82%</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowTelemetryModal(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-xs font-black shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer border-2 border-indigo-950"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white text-xs font-black shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[4.5px_4.5px_0px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_0px_#000000] transition-all cursor-pointer border-2 border-black"
               >
-                <Cpu className="w-3.5 h-3.5 text-cyan-200" />
+                <Cpu className="w-3.5 h-3.5 text-white stroke-[2.5]" />
                 <span>212.9M Neural Architecture & MPS Kernel</span>
               </button>
             </div>
@@ -475,18 +475,18 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer - Clean Akademia Editorial Style */}
-      <footer className="border-t-2 border-zinc-900/10 bg-white/70 py-6 mt-12 text-center text-xs text-zinc-600">
+      {/* Footer - Neobrutalism UI */}
+      <footer className="border-t-[2.5px] border-black bg-white py-6 mt-12 text-center text-xs text-black">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center font-black text-[10px] shadow-sm">
+            <div className="w-6 h-6 rounded-lg bg-[#8B5CF6] text-white flex items-center justify-center font-black text-xs border border-black shadow-[1.5px_1.5px_0px_0px_#000000]">
               A
             </div>
-            <span className="font-extrabold text-zinc-900">AkiMed Studio</span>
+            <span className="font-black text-black">AkiMed Studio</span>
             <span className="text-zinc-400">•</span>
-            <span>Clinical Informatics Decision Engine</span>
+            <span className="font-semibold text-zinc-700">Clinical Informatics Decision Engine</span>
           </div>
-          <p className="text-[11px] text-zinc-500 font-medium">
+          <p className="text-[11px] text-zinc-600 font-bold">
             Trained on DDXPlus, USMLE MedQA, & NEET-PG MedMCQA • Apple Silicon MPS Accelerated
           </p>
         </div>
