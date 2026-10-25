@@ -119,11 +119,11 @@ export const PatientForm: React.FC<PatientFormProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b-2 border-zinc-900/10 gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shadow-tactile-sm border-2 border-zinc-900 ${
-            activeMode === 'akinator' ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shadow-tactile-sm border-2 border-indigo-950 ${
+            activeMode === 'akinator' ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white' : 'bg-gradient-to-br from-purple-600 to-rose-600 text-white'
           }`}>
             {activeMode === 'akinator' ? (
-              <Brain className="w-5 h-5 text-zinc-950" />
+              <Brain className="w-5 h-5 text-white" />
             ) : (
               <Activity className="w-5 h-5 text-white" />
             )}
@@ -135,10 +135,10 @@ export const PatientForm: React.FC<PatientFormProps> = ({
                   ? 'Dr. Akinator Consultation & Patient Intake'
                   : 'Direct Emergency Triage & Differential Intake'}
               </h2>
-              <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border-2 border-zinc-900 shadow-tactile-sm ${
+              <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border-2 border-indigo-950 shadow-tactile-sm ${
                 activeMode === 'akinator'
-                  ? 'bg-emerald-200 text-zinc-950'
-                  : 'bg-rose-200 text-zinc-950'
+                  ? 'bg-blue-100 text-blue-950'
+                  : 'bg-purple-100 text-purple-950'
               }`}>
                 {activeMode === 'akinator' ? 'Interactive Inquiry' : '⚡ MPS GPU Triage'}
               </span>
@@ -448,7 +448,7 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           )}
         </div>
 
-        {/* Action Buttons - Mode Specific */}
+        {/* Action Buttons - Royal Blue & Purple Infused */}
         <div className="pt-2 flex flex-col gap-3">
           {activeMode === 'akinator' ? (
             <div className="flex flex-col sm:flex-row items-center gap-3">
@@ -456,21 +456,21 @@ export const PatientForm: React.FC<PatientFormProps> = ({
                 type="button"
                 disabled={isLoading || !patient.chiefSymptoms?.trim()}
                 onClick={handleLaunchAkinator}
-                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+                className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-sm border-2 border-indigo-950 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
               >
-                <Brain className="w-5 h-5 text-zinc-950" />
+                <Brain className="w-5 h-5 text-cyan-200" />
                 <span>Begin Dr. Akinator Diagnostic Inquiry</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onSwitchMode ? onSwitchMode('triage') : handleLaunchTriage()}
-                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-white hover:bg-indigo-50 text-indigo-950 font-bold text-xs border-2 border-indigo-950 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title="Switch directly to emergency triage"
               >
-                <Activity className="w-4 h-4 text-rose-600" />
+                <Activity className="w-4 h-4 text-purple-600" />
                 <span>Instant Triage View</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />
               </button>
             </div>
           ) : (
@@ -479,20 +479,20 @@ export const PatientForm: React.FC<PatientFormProps> = ({
                 type="button"
                 disabled={isLoading || !patient.chiefSymptoms?.trim()}
                 onClick={handleLaunchTriage}
-                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+                className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 hover:from-indigo-500 hover:to-rose-500 text-white font-black text-sm border-2 border-indigo-950 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
               >
                 <Activity className="w-5 h-5 text-white" />
                 <span>Compute Emergency Triage & Differential (MPS GPU)</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-pink-200" />
               </button>
 
               <button
                 type="button"
                 onClick={() => onSwitchMode ? onSwitchMode('akinator') : handleLaunchAkinator()}
-                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-white hover:bg-indigo-50 text-indigo-950 font-bold text-xs border-2 border-indigo-950 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 title="Switch to Dr. Akinator inquiry mode"
               >
-                <Brain className="w-4 h-4 text-emerald-600" />
+                <Brain className="w-4 h-4 text-indigo-600" />
                 <span>Switch to Dr. Akinator Inquiry</span>
               </button>
             </div>

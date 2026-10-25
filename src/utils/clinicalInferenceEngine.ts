@@ -1,5 +1,11 @@
 import { PatientProfile, DiagnosticAssessment, AkinatorQuestion, DifferentialItem, TriageEvaluation, AkinatorQA, AkinatorState, ActiveHypothesisInfo } from '../types/clinical';
 import { evaluateTriageDeterministic, checkAllergyAndMedInteractions } from './clinicalFallbackEngine';
+import {
+  DISEASE_PROXIMITY_GRAPH,
+  findNearestNonRefutedDisease,
+  getNextHallmarkQuestionForDisease,
+  normalizeDiseaseId,
+} from './diseaseProximityGraph';
 
 const LIKERT_ANSWERS: AkinatorQuestion['possibleAnswers'] = [
   { label: 'Yes', value: 'yes' },
@@ -237,10 +243,27 @@ export function computeAkinatorInferenceStep(
     normalizeProbabilities(currentProbs, allDiseaseIds);
   }
 
+  // 3. Track Refuted Conditions from History
+  const refutedDiseases = new Set<string>();
+  for (let i = 0; i < history.length; i++) {
+    const item = history[i];
+    if (item.answer === 'no' || item.answer === 'probably_no') {
+      // Find what question was asked or what disease was targeted
+      if (item.questionId) {
+        for (const [dId, node] of Object.entries(DISEASE_PROXIMITY_GRAPH)) {
+          if (node.hallmarkQuestions.some(hq => hq.questionId === item.questionId)) {
+            refutedDiseases.add(dId);
+            currentProbs[dId] = 0.001;
+          }
+        }
+      }
+    }
+  }
+
   // Final normalization across all diseases
   normalizeProbabilities(currentProbs, allDiseaseIds);
 
-  // 3. Sort ALL candidate diseases dynamically by posterior probability
+  // 4. Sort ALL candidate diseases dynamically by posterior probability
   const sortedCandidates = allDiseaseIds
     .map(id => ({
       id,
@@ -253,9 +276,10 @@ export function computeAkinatorInferenceStep(
   const topCandidate = sortedCandidates[0];
   const secondCandidate = sortedCandidates[1];
   const thirdCandidate = sortedCandidates[2];
-  const topConfidence = Math.min(99, Math.round(topCandidate?.prob || 50));
+  let topConfidence = Math.min(99, Math.round(topCandidate?.prob || 50));
 
-  // 4. Dynamic Hypothesis Tracking & Disease Pivoting
+  // 5. Authentic Akinator Dynamic Hypothesis Lock-On & Nearest-Neighbor Pivoting
+  let activeDiseaseId = normalizeDiseaseId(topCandidate.profile.name || topCandidate.id);
   let hypothesisStatus: ActiveHypothesisInfo['status'] = 'exploring';
   let pivotedFrom: string | null = null;
   let hypothesisReason = '';
@@ -263,109 +287,178 @@ export function computeAkinatorInferenceStep(
   const turn = history.length;
 
   if (turn === 0) {
-    // Turn 0: Differential screening
+    activeDiseaseId = normalizeDiseaseId(topCandidate.profile.name || topCandidate.id);
     hypothesisStatus = 'exploring';
-    hypothesisReason = `Broad differential inquiry: evaluating presentation across top candidate diagnoses (${sortedCandidates.slice(0, 3).map(c => `${c.profile.name.split(' ')[0]} ${c.prob}%`).join(', ')}).`;
+    hypothesisReason = `Initial clinical presentation strongly points to ${CLINICAL_DISEASES[activeDiseaseId]?.name || topCandidate.profile.name} (${topConfidence}% prior likelihood). Dr. Akinator is investigating cardinal hallmark criteria.`;
   } else {
-    // Check if the leading candidate changed compared to previous hypothesis
-    if (prevHypothesis && prevHypothesis.diseaseName && prevHypothesis.diseaseName !== topCandidate.profile.name) {
+    const lastQA = history[history.length - 1];
+    const prevDiseaseName = prevHypothesis?.diseaseName || topCandidate.profile.name;
+    const prevDiseaseId = normalizeDiseaseId(prevDiseaseName);
+
+    if (lastQA.answer === 'no' || lastQA.answer === 'probably_no') {
+      // The working hypothesis is REFUTED!
+      refutedDiseases.add(prevDiseaseId);
+      currentProbs[prevDiseaseId] = 0.001;
+      normalizeProbabilities(currentProbs, allDiseaseIds);
+
+      // Find closest look-alike neighbor from clinical proximity graph
+      const neighbor = findNearestNonRefutedDisease(prevDiseaseId, refutedDiseases);
+      pivotedFrom = prevDiseaseName;
       hypothesisStatus = 'refuted';
-      pivotedFrom = prevHypothesis.diseaseName;
-      hypothesisReason = `Hypothesis refuted for previous lead (${pivotedFrom}); clinical evidence dynamically pivoted primary differential to ${topCandidate.profile.name} (${topConfidence}%).`;
-    } else if (topConfidence >= 85) {
+
+      if (neighbor) {
+        activeDiseaseId = neighbor.diseaseId;
+        hypothesisReason = `Negative finding on previous inquiry refuted working hypothesis '${prevDiseaseName}'. Switched to closest differential look-alike '${neighbor.name}' (${Math.round(neighbor.similarity * 100)}% clinical proximity: ${neighbor.clinicalReason}). Now probing cardinal hallmark criteria.`;
+      } else {
+        // Fallback to highest unrefuted candidate
+        const unrefuted = sortedCandidates.find(c => !refutedDiseases.has(c.id));
+        activeDiseaseId = unrefuted ? unrefuted.id : topCandidate.id;
+        hypothesisReason = `Negative finding refuted working hypothesis '${prevDiseaseName}'. Pivoted to next leading clinical differential '${CLINICAL_DISEASES[activeDiseaseId]?.name || activeDiseaseId}'.`;
+      }
+    } else if (lastQA.answer === 'yes' || lastQA.answer === 'probably_yes') {
+      activeDiseaseId = prevDiseaseId;
       hypothesisStatus = 'corroborated';
-      hypothesisReason = `Cardinal clinical criteria strongly corroborated for ${topCandidate.profile.name} (${topConfidence}% confidence).`;
-    } else if (turn >= 2 && topConfidence >= 45) {
-      hypothesisStatus = 'pursuing';
-      hypothesisReason = `Actively probing distinguishing criteria for leading candidate ${topCandidate.profile.name} (${topConfidence}%) vs alternative differentials.`;
+      hypothesisReason = `Affirmative finding corroborates active hypothesis '${CLINICAL_DISEASES[activeDiseaseId]?.name || prevDiseaseName}'. Continuing targeted hallmark ladder.`;
     } else {
-      hypothesisStatus = 'exploring';
-      hypothesisReason = `Screening diagnostic inquiry: balancing ${topCandidate.profile.name} (${topConfidence}%) and ${secondCandidate?.profile.name || 'alternatives'} (${secondCandidate?.prob || 0}%).`;
+      activeDiseaseId = prevDiseaseId;
+      hypothesisStatus = 'pursuing';
+      hypothesisReason = `Evaluating collateral criteria for '${CLINICAL_DISEASES[activeDiseaseId]?.name || prevDiseaseName}'.`;
     }
   }
 
-  // 5. Available Question Extraction & Dynamic Discriminator Selection
+  // 6. Available Question Extraction & Dynamic Discriminator Selection
   const availableQuestions = QUESTION_CATALOG.filter(q => {
     if (answeredQuestionIds.has(q.id)) return false;
-    // Deduplicate against intake text
     if (q.triggerKeywords && q.triggerKeywords.some(kw => initialText.includes(kw))) {
       return false;
     }
     return true;
   });
 
+  // Count confirmed positive answers for active disease
+  let positiveAnswersForActive = 0;
+  for (const h of history) {
+    if (h.answer === 'yes' || h.answer === 'probably_yes') {
+      const qDef = QUESTION_CATALOG.find(q => q.id === h.questionId);
+      if (qDef && qDef.diseaseLikelihoods[activeDiseaseId]?.lrPos > 2.0) {
+        positiveAnswersForActive++;
+      }
+      const proxNode = DISEASE_PROXIMITY_GRAPH[activeDiseaseId];
+      if (proxNode && proxNode.hallmarkQuestions.some(hq => hq.questionId === h.questionId)) {
+        positiveAnswersForActive++;
+      }
+    }
+  }
+
+  // Re-adjust confidence if corroborated
+  if (hypothesisStatus === 'corroborated') {
+    topConfidence = Math.min(98, Math.max(topConfidence, 70 + positiveAnswersForActive * 10));
+  } else if (hypothesisStatus === 'refuted') {
+    topConfidence = Math.min(85, Math.max(65, topConfidence));
+  }
+
   // Strict stopping criteria as specified:
-  // Do NOT cap at 20 questions! The engine must NOT stop asking questions until topConfidence >= 95%
-  // (or until all available discriminators in the catalog are exhausted).
-  const hasReachedCertainty = topConfidence >= 95;
+  // Conclude when certainty >= 95% or >= 3 hallmark affirmations or budget exhausted
+  const hasReachedCertainty = (topConfidence >= 95 || positiveAnswersForActive >= 3) && turn >= 2;
   const hasExhaustedQuestions = availableQuestions.length === 0;
   const isConcluded = hasReachedCertainty || hasExhaustedQuestions;
-  const isDefinitive = topConfidence >= 95;
+  const isDefinitive = Boolean(hasReachedCertainty);
 
   let nextQuestion: AkinatorQuestion | undefined = undefined;
 
-  if (!isConcluded && availableQuestions.length > 0) {
-    // Find question that maximizes discriminatory divergence between current top candidates
-    let bestQ = availableQuestions[0];
-    let bestScore = -1;
+  if (!isConcluded) {
+    // Priority 1: Check hallmark ladder for the active disease
+    const hallmarkQ = getNextHallmarkQuestionForDisease(activeDiseaseId, answeredQuestionIds);
+    if (hallmarkQ) {
+      nextQuestion = {
+        questionId: hallmarkQ.questionId,
+        questionText: hallmarkQ.questionText,
+        category: hallmarkQ.category,
+        clinicalRationale: hallmarkQ.clinicalRationale,
+        possibleAnswers: LIKERT_ANSWERS,
+      };
+    } else if (availableQuestions.length > 0) {
+      // Priority 2: Maximally discriminatory catalog question
+      let bestQ = availableQuestions[0];
+      let bestScore = -1;
 
-    const topId = topCandidate.id;
-    const secId = secondCandidate?.id || allDiseaseIds[1] || topId;
-    const thirdId = thirdCandidate?.id;
+      const topId = activeDiseaseId;
+      const secId = secondCandidate?.id || allDiseaseIds[1] || topId;
+      const thirdId = thirdCandidate?.id;
 
-    for (const q of availableQuestions) {
-      const lr1 = q.diseaseLikelihoods[topId]?.lrPos ?? 1.0;
-      const lr2 = q.diseaseLikelihoods[secId]?.lrPos ?? 1.0;
-      const lr3 = thirdId ? (q.diseaseLikelihoods[thirdId]?.lrPos ?? 1.0) : 1.0;
+      for (const q of availableQuestions) {
+        const lr1 = q.diseaseLikelihoods[topId]?.lrPos ?? 1.0;
+        const lr2 = q.diseaseLikelihoods[secId]?.lrPos ?? 1.0;
+        const lr3 = thirdId ? (q.diseaseLikelihoods[thirdId]?.lrPos ?? 1.0) : 1.0;
 
-      // Discrimination divergence: how differently this question affects condition 1 vs rival conditions
-      const divergence12 = Math.abs(Math.log(Math.max(0.05, lr1)) - Math.log(Math.max(0.05, lr2)));
-      const divergence13 = Math.abs(Math.log(Math.max(0.05, lr1)) - Math.log(Math.max(0.05, lr3)));
+        const divergence12 = Math.abs(Math.log(Math.max(0.05, lr1)) - Math.log(Math.max(0.05, lr2)));
+        const divergence13 = Math.abs(Math.log(Math.max(0.05, lr1)) - Math.log(Math.max(0.05, lr3)));
+        const relevance = Math.max(lr1, 1 / Math.max(0.05, lr1));
 
-      // Relevance to leading candidate
-      const relevance = Math.max(lr1, 1 / Math.max(0.05, lr1));
-
-      // Red flag bonus if a life-threatening disease has >4% probability
-      let redFlagBonus = 0;
-      if (q.category === 'Red Flag') {
-        for (const [dId, lrConf] of Object.entries(q.diseaseLikelihoods)) {
-          if ((currentProbs[dId] || 0) > 4 && lrConf.lrPos > 3.0) {
-            redFlagBonus += 3.0;
+        let redFlagBonus = 0;
+        if (q.category === 'Red Flag') {
+          for (const [dId, lrConf] of Object.entries(q.diseaseLikelihoods)) {
+            if ((currentProbs[dId] || 0) > 4 && lrConf.lrPos > 3.0) {
+              redFlagBonus += 3.0;
+            }
           }
+        }
+
+        const score = divergence12 * 2.5 + divergence13 * 1.0 + relevance * 1.5 + redFlagBonus;
+        if (score > bestScore) {
+          bestScore = score;
+          bestQ = q;
         }
       }
 
-      const score = divergence12 * 2.5 + divergence13 * 1.0 + relevance * 1.5 + redFlagBonus;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestQ = q;
-      }
+      nextQuestion = {
+        questionId: bestQ.id,
+        questionText: bestQ.text,
+        category: bestQ.category,
+        clinicalRationale: bestQ.rationale,
+        possibleAnswers: LIKERT_ANSWERS,
+      };
     }
-
-    nextQuestion = {
-      questionId: bestQ.id,
-      questionText: bestQ.text,
-      category: bestQ.category,
-      clinicalRationale: bestQ.rationale,
-      possibleAnswers: LIKERT_ANSWERS,
-    };
   }
 
-  // 6. Format Differential Ranking & Diagnostic Assessment
-  // Takes top candidates dynamically from the ENTIRE sorted catalog
-  const differentialRanking: DifferentialItem[] = sortedCandidates.slice(0, 8).map((c, idx) => ({
-    diseaseName: c.profile.name,
-    icd10Code: c.profile.icd10,
-    likelihood: Math.round(c.prob),
-    category: idx === 0 ? 'Primary' : (idx <= 2 ? 'Secondary' : 'Alternative'),
-    pathophysiology: c.profile.pathophysiology,
-    supportingFindings: c.profile.supportingFindings,
-    opposingFindings: c.profile.opposingFindings,
-    bedsideSignsToTest: c.profile.bedsideSignsToTest,
-    recommendedWorkup: c.profile.recommendedWorkup,
-    clinicalPearls: c.profile.clinicalPearls,
-  }));
+  // Format active disease profile
+  const activeProfile = CLINICAL_DISEASES[activeDiseaseId] || topCandidate.profile;
+
+  // 7. Format Differential Ranking & Diagnostic Assessment
+  // Prioritize active disease at #1, followed by its proximity neighbors and top alternatives
+  const proximityNode = DISEASE_PROXIMITY_GRAPH[activeDiseaseId];
+  const neighborIds = proximityNode ? proximityNode.nearestNeighbors.map(n => n.diseaseId) : [];
+
+  const prioritizedDiseases: string[] = [
+    activeDiseaseId,
+    ...neighborIds.filter(nid => nid !== activeDiseaseId && !refutedDiseases.has(nid)),
+    ...sortedCandidates.map(c => c.id).filter(id => id !== activeDiseaseId && !neighborIds.includes(id) && !refutedDiseases.has(id)),
+    ...Array.from(refutedDiseases)
+  ];
+
+  const differentialRanking: DifferentialItem[] = prioritizedDiseases
+    .filter(id => CLINICAL_DISEASES[id] !== undefined)
+    .slice(0, 8)
+    .map((dId, idx) => {
+      const prof = CLINICAL_DISEASES[dId];
+      const isRefuted = refutedDiseases.has(dId);
+      let likelihood = isRefuted ? 2 : Math.round(currentProbs[dId] * 10) / 10;
+      if (idx === 0 && !isRefuted) {
+        likelihood = Math.max(likelihood, topConfidence);
+      }
+      return {
+        diseaseName: prof.name,
+        icd10Code: prof.icd10,
+        likelihood: Math.min(99, Math.round(likelihood)),
+        category: idx === 0 ? 'Primary' : (idx <= 2 ? 'Secondary' : 'Alternative'),
+        pathophysiology: prof.pathophysiology,
+        supportingFindings: isRefuted ? ['[Hypothesis refuted by negative clinical finding]'] : prof.supportingFindings,
+        opposingFindings: prof.opposingFindings,
+        bedsideSignsToTest: prof.bedsideSignsToTest,
+        recommendedWorkup: prof.recommendedWorkup,
+        clinicalPearls: prof.clinicalPearls,
+      };
+    });
 
   const triage = evaluateTriageDeterministic(patient);
   const allergyAlerts = checkAllergyAndMedInteractions(patient);
@@ -376,43 +469,39 @@ export function computeAkinatorInferenceStep(
     allergyAndMedicationAlerts: allergyAlerts,
     immediateActionPlan: [
       `Triage Level ${triage.level} (${triage.levelName}): Prioritize patient evaluation within ${triage.timeToPhysician}.`,
-      `Highest probability condition: ${topCandidate.profile.name} (${topConfidence}% posterior likelihood).`,
+      `Highest probability condition: ${activeProfile.name} (${topConfidence}% posterior likelihood).`,
       'Establish peripheral venous access, draw baseline CBC, chemistry panel, and targeted confirmatory tests as indicated.',
       'Maintain continuous vital sign monitoring and adhere to allergy contraindication alerts.',
     ],
     differentialSummary: isDefinitive
-      ? `Definitive diagnostic certainty threshold reached (>=95% confidence). Primary identified condition is ${topCandidate.profile.name}. Immediate targeted confirmatory testing and clinical management indicated.`
-      : `Inquiry completed after ${turn} turns. Primary candidate is ${topCandidate.profile.name} (${topConfidence}%), with close differentials ${sortedCandidates.slice(1, 4).map(c => `${c.profile.name} (${c.prob}%)`).join(', ')}. Comprehensive differential workup recommended.`,
+      ? `Definitive diagnostic certainty threshold reached (>=95% confidence). Primary identified condition is ${activeProfile.name}. Immediate targeted confirmatory testing and clinical management indicated.`
+      : `Inquiry completed after ${turn} turns. Primary candidate is ${activeProfile.name} (${topConfidence}%), with close differentials ${differentialRanking.slice(1, 4).map(c => `${c.diseaseName} (${c.likelihood}%)`).join(', ')}. Comprehensive differential workup recommended.`,
   };
 
   // 7. Generate Dr. Akinator Thought Bubble
   let akinatorThought = '';
   if (isConcluded) {
     if (isDefinitive) {
-      akinatorThought = `Definitive diagnostic threshold met (${topConfidence}% confidence >= 95% at Turn ${turn})! Identified ${topCandidate.profile.name}. Findings decisively confirm cardinal pathophysiological criteria.`;
+      akinatorThought = `Definitive diagnostic threshold met (${topConfidence}% confidence >= 95% at Turn ${turn})! Identified ${activeProfile.name}. Findings decisively confirm cardinal pathophysiological criteria.`;
     } else {
       akinatorThought = `All ${turn} available clinical discriminators exhausted. Highest posterior candidate reached ${topConfidence}%. In strict adherence to MBBS diagnostic safety, presenting ranked differential spectrum without premature closure.`;
     }
-  } else if (turn === 0) {
-    const hasVitals = patient.vitalSigns && Object.values(patient.vitalSigns).some(v => v !== undefined && v !== null && (v as number) > 0);
-    const vSummary = hasVitals ? getVitalsEliminationSummary(patient) : null;
-    const vitalsNote = vSummary && vSummary.eliminatedCount > 0
-      ? ` Vitals tolerance analysis pruned ${vSummary.eliminatedCount}/${allDiseaseIds.length} incompatible conditions (${vSummary.eliminationRate.toFixed(0)}% eliminated).`
-      : '';
-    akinatorThought = `Turn 1: Initial differential priors seeded across ${allDiseaseIds.length} clinical conditions.${vitalsNote} Top cluster: ${sortedCandidates.slice(0, 3).map(c => c.profile.name.split(' ')[0]).join(' vs ')}. Active inquiry will dynamically adapt until >=95% certainty is attained.`;
-
-  } else if (pivotedFrom) {
-    akinatorThought = `Turn ${turn}: Diagnostic pivot detected! Previous lead ${pivotedFrom} refuted by patient response; ${topCandidate.profile.name} (${topConfidence}%) dynamically elevated to primary differential.`;
+  } else if (hypothesisStatus === 'refuted') {
+    akinatorThought = `Turn ${currentStep}: [Hypothesis Refuted & Pivoted] ${hypothesisReason}`;
+  } else if (hypothesisStatus === 'corroborated') {
+    akinatorThought = `Turn ${currentStep}: [Hypothesis Corroborated] ${hypothesisReason}`;
+  } else if (hypothesisStatus === 'exploring') {
+    akinatorThought = `Turn 1: [Prominent Hypothesis Lock-On] ${hypothesisReason}`;
   } else {
-    akinatorThought = `Turn ${turn}: Bayesian update applied across all ${allDiseaseIds.length} conditions. Leading candidate: ${topCandidate.profile.name} (${topConfidence}%). Active inquiry continuing until >=95% certainty threshold is met...`;
+    akinatorThought = `Turn ${currentStep}: [Active Hypothesis Pursuit] ${hypothesisReason}`;
   }
 
   // The 5 candidates displayed in real-time adapt dynamically across the entire medical catalog
-  const currentCandidates = sortedCandidates.slice(0, 5).map(c => ({
-    diseaseName: c.profile.name,
-    confidence: Math.round(c.prob),
-    trend: (turn === 0 ? 'stable' : (c.id === topCandidate.id ? 'rising' : 'falling')) as 'rising' | 'falling' | 'stable',
-    reason: c.profile.supportingFindings[0] || 'Corroborated by clinical presentation',
+  const currentCandidates = differentialRanking.slice(0, 5).map((c, idx) => ({
+    diseaseName: c.diseaseName,
+    confidence: c.likelihood,
+    trend: (turn === 0 ? 'stable' : (idx === 0 ? 'rising' : 'falling')) as 'rising' | 'falling' | 'stable',
+    reason: c.supportingFindings[0] || 'Corroborated by clinical presentation',
   }));
 
   return {
@@ -422,7 +511,7 @@ export function computeAkinatorInferenceStep(
     isDefinitive,
     differentialRanking,
     activeHypothesis: {
-      diseaseName: topCandidate.profile.name,
+      diseaseName: activeProfile.name,
       status: hypothesisStatus,
       confidence: topConfidence,
       reason: hypothesisReason,

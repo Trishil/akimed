@@ -69,21 +69,21 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
       <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 md:p-8 shadow-tactile text-zinc-900 relative overflow-hidden transition-all">
         
         {/* Top Bar: Step & Status */}
-        <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-zinc-900/10">
+        <div className="flex items-center justify-between pb-4 mb-5 border-b-2 border-indigo-950/15">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-900 text-white flex items-center justify-center shadow-tactile-sm border-2 border-zinc-900">
-                <Stethoscope className="w-6 h-6 text-teal-400 font-bold" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center shadow-tactile-sm border-2 border-indigo-950">
+                <Brain className="w-6 h-6 text-cyan-200 font-bold" />
               </div>
               <span className="absolute -bottom-1 -right-1 flex h-3.5 w-3.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-blue-500"></span>
               </span>
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-black text-zinc-900 tracking-tight">Dr. Akinator</h3>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black bg-teal-100 text-teal-950 border-2 border-zinc-900 shadow-tactile-sm">
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-black bg-indigo-100 text-indigo-950 border-2 border-indigo-950 shadow-tactile-sm">
                   Discriminator Policy Head
                 </span>
               </div>
@@ -98,7 +98,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={onRestart}
-              className="px-3.5 py-1.5 rounded-full border-2 border-zinc-900 bg-white hover:bg-zinc-100 text-xs font-bold text-zinc-800 flex items-center gap-1.5 transition-all shadow-tactile-sm cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full border-2 border-indigo-950 bg-white hover:bg-indigo-50 text-xs font-bold text-indigo-950 flex items-center gap-1.5 transition-all shadow-tactile-sm cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Restart Inquiry</span>
@@ -106,15 +106,15 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
           </div>
         </div>
 
-        {/* Dr. Akinator Thinking Bubble - Warm Aesthetic */}
-        <div className="bg-[#FAF8F5] border-2 border-zinc-900/20 rounded-2xl p-4 mb-6 relative shadow-tactile-sm">
+        {/* Dr. Akinator Thinking Bubble - Royal Blue & Purple Gradient Accent */}
+        <div className="bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-blue-50/90 border-2 border-indigo-900/30 rounded-2xl p-4 mb-6 relative shadow-tactile-sm">
           <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+            <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
             <div>
-              <span className="text-xs font-black text-zinc-700 uppercase tracking-wider block mb-1">
-                Akinator Entropy Reduction Thought
+              <span className="text-xs font-black text-indigo-950 uppercase tracking-wider block mb-1">
+                Akinator Entropy Reduction & Reasoning Head
               </span>
-              <p className="text-xs sm:text-sm text-zinc-800 italic leading-relaxed font-serif">
+              <p className="text-xs sm:text-sm text-indigo-950 italic leading-relaxed font-serif">
                 "{akinatorState.akinatorThought || 'Evaluating presentation and calculating cross-symptom attention weights...'}"
               </p>
             </div>
@@ -264,7 +264,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                     </h4>
                   </div>
                   {akinatorState.engineTelemetry ? (
-                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-zinc-900 text-emerald-400 border border-zinc-700 font-bold flex items-center gap-1 shadow-sm">
+                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-900 to-indigo-900 text-emerald-300 border border-indigo-700 font-bold flex items-center gap-1 shadow-sm">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                       MPS GPU: {akinatorState.engineTelemetry.latencyMs}ms ({akinatorState.engineTelemetry.monteCarloPasses || 24}-Pass MC)
                     </span>
@@ -426,7 +426,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <button
                       onClick={onViewFullTriage}
-                      className="w-full sm:w-auto px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-black text-xs rounded-full shadow-tactile-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white font-black text-xs rounded-full shadow-tactile-sm transition-all flex items-center justify-center gap-2 cursor-pointer border-2 border-indigo-950"
                     >
                       <Activity className="w-4 h-4 text-teal-400" />
                       <span>View Emergency Triage & Lab Workup</span>
@@ -510,7 +510,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
                           <div className="flex items-center gap-2.5">
                             <span className={`text-xs font-black px-2.5 py-1 rounded-full font-mono ${
-                              rank === 0 ? 'bg-zinc-900 text-white' : 'bg-zinc-200 text-zinc-800'
+                              rank === 0 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm' : 'bg-indigo-100 text-indigo-900 border border-indigo-200'
                             }`}>
                               #{rank + 1}
                             </span>
@@ -589,7 +589,7 @@ export const AkinatorGame: React.FC<AkinatorGameProps> = ({
                   <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
                     <button
                       onClick={onViewFullTriage}
-                      className="w-full sm:w-auto px-6 py-3 bg-zinc-900 hover:bg-zinc-800 text-white font-black text-xs rounded-full shadow-tactile-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white font-black text-xs rounded-full shadow-tactile-sm transition-all flex items-center justify-center gap-2 cursor-pointer border-2 border-indigo-950"
                     >
                       <Activity className="w-4 h-4 text-teal-400" />
                       <span>View Emergency Triage & Differential Workup</span>

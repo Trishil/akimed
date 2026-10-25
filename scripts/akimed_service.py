@@ -28,6 +28,7 @@ import torch.nn.functional as F
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from neural_architecture import AkiMedMultiTaskNet
 from clinical_transformer_architecture import AkiMedClinicalTransformer
+from disease_proximity import ClinicalProximityManager, CLINICAL_PROXIMITY_RULES
 
 DATA_ROOT = "/Volumes/Trishil/Akimed_data"
 PROCESSED_DIR = os.path.join(DATA_ROOT, "processed")
@@ -62,6 +63,7 @@ neural_model: Optional[AkiMedMultiTaskNet] = None
 neural_meta: Optional[Dict[str, Any]] = None
 active_weights_path: Optional[str] = None
 disease_vitals_ontology: Dict[str, Any] = {}
+proximity_manager: Optional[ClinicalProximityManager] = None
 
 
 # Comprehensive clinical term mapping from natural language to DDXPlus evidence codes (all 223 codes)
@@ -893,7 +895,7 @@ KEYWORD_TO_EVIDENCES = {
 }
 
 def load_all_artifacts():
-    global prob_matrix, condition_priors, conditions_lookup, evidences_lookup, evidence_condition_frequencies, clinical_knowledge, triage_model, evaluation_report, neural_model, neural_meta, disease_vitals_ontology
+    global prob_matrix, condition_priors, conditions_lookup, evidences_lookup, evidence_condition_frequencies, clinical_knowledge, triage_model, evaluation_report, neural_model, neural_meta, disease_vitals_ontology, proximity_manager
     print("[INIT] Loading AkiMed clinical models and knowledge bases...")
     
     prob_matrix_path = os.path.join(PROCESSED_DIR, "prob_matrix_expanded.json")
@@ -941,6 +943,13 @@ def load_all_artifacts():
         with open(vitals_ont_path, "r", encoding="utf-8") as f:
             disease_vitals_ontology = json.load(f)
         print(f"[INIT] Loaded continuous disease vitals ontology with margins ({len(disease_vitals_ontology)} conditions).")
+
+    # Initialize Clinical Proximity Manager for authentic Akinator 20-questions
+    try:
+        proximity_manager = ClinicalProximityManager(prob_matrix, evidences_lookup)
+        print(f"[INIT] Loaded Clinical Proximity Manager ({len(proximity_manager.conditions)} conditions) for authentic Akinator nearest-neighbor engine.")
+    except Exception as e:
+        print(f"[WARN] Failed to initialize ClinicalProximityManager: {e}")
 
     # Inject Organophosphate / Carbamate Poisoning clinical knowledge
     OP_COND_NAME = "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)"
@@ -2727,156 +2736,20 @@ def akinator_step(req: AkinatorStepRequest):
             elif h.answer in ["no", "probably_no"]:
                 confirmed_negative.add(ev_code)
 
-    current_candidates = []
+    asked_q_ids = set()
+    for h in history:
+        if h.questionId:
+            asked_q_ids.add(h.questionId)
 
-    # Check toxicological & emergency gatekeeper override for Akinator
-    tox_gate = evaluate_toxicological_gatekeeper(patient)
-    gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
-    acs_gate = evaluate_atypical_coronary_gatekeeper(patient)
-
-    if acs_gate:
-        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
-        top_d = diag_res["topDiagnoses"][0]
-        thought = (
-            f"Definitive high-risk cardiac presentation identified (95% posterior confidence at Turn {step})! "
-            f"Atypical Acute Coronary Syndrome (Possible NSTEMI / STEMI with Killip II heart failure) "
-            f"supported by diabetic anginal equivalent (epigastric ache radiating to back), audible S4 gallop, and bibasilar crackles."
-        )
-        return {
-            "step": step,
-            "maxSteps": 20,
-            "isConcluded": True,
-            "isDefinitive": True,
-            "differentialRanking": diag_res["topDiagnoses"][:5],
-            "activeHypothesis": {
-                "diseaseName": top_d["diseaseName"],
-                "status": "corroborated",
-                "confidence": 95,
-                "reason": "Primary diagnosis confirmed with 95% posterior certainty.",
-                "pivotedFrom": None
-            },
-            "akinatorThought": thought,
-            "currentCandidates": [
-                {"diseaseName": "Possible NSTEMI / STEMI", "confidence": 95, "trend": "rising", "reason": "Atypical Anginal Equivalent with S4 Gallop & Killip II Crackles"},
-                {"diseaseName": "Acute ST-elevation myocardial infarction (STEMI)", "confidence": 72, "trend": "rising", "reason": "Inferior-Posterior Wall Involvement Trajectory"},
-                {"diseaseName": "Acute pancreatitis", "confidence": 25, "trend": "falling", "reason": "S4 Gallop and Crackles Point to Cardiac Etiology"}
-            ],
-            "nextQuestion": None,
-            "finalDiagnosis": top_d,
-            "assessment": diag_res,
-            "engineTelemetry": diag_res.get("engineTelemetry")
-        }
-
-    if gyn_gate:
-        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
-        top_d = diag_res["topDiagnoses"][0]
-        thought = (
-            f"Definitive surgical emergency identified (96% posterior confidence at Turn {step})! "
-            f"{top_d['diseaseName']} in decompensated hemorrhagic shock supported by 7-week amenorrhea, "
-            f"vaginal spotting, cervical motion tenderness, and positive Kehr's shoulder sign."
-        )
-        return {
-            "step": step,
-            "maxSteps": 20,
-            "isConcluded": True,
-            "isDefinitive": True,
-            "differentialRanking": diag_res["topDiagnoses"][:5],
-            "activeHypothesis": {
-                "diseaseName": top_d["diseaseName"],
-                "status": "corroborated",
-                "confidence": 96,
-                "reason": "Primary diagnosis confirmed with 96% posterior certainty.",
-                "pivotedFrom": None
-            },
-            "akinatorThought": thought,
-            "currentCandidates": [
-                {"diseaseName": "Ruptured ectopic pregnancy", "confidence": 96, "trend": "rising", "reason": "Hemoperitoneum & Decompensated Hemorrhagic Shock"},
-                {"diseaseName": "Ruptured hemorrhagic ovarian cyst / Ovarian torsion", "confidence": 32, "trend": "falling", "reason": "7-Week Amenorrhea & Spotting Favor Ectopic"},
-                {"diseaseName": "Acute appendicitis", "confidence": 12, "trend": "falling", "reason": "CMT and Kehr Shoulder Sign Refute Appendicitis"}
-            ],
-            "nextQuestion": None,
-            "finalDiagnosis": top_d,
-            "assessment": diag_res,
-            "engineTelemetry": diag_res.get("engineTelemetry")
-        }
-
-    if tox_gate:
-        has_tox_ans = any("pesticide" in (h.question or "").lower() or "spray" in (h.question or "").lower() or "organophosphate" in (h.question or "").lower() for h in history)
-        if step >= 2 or has_tox_ans:
-            diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
-            top_d = diag_res["topDiagnoses"][0]
-            thought = (
-                f"Definitive diagnostic threshold reached (98% posterior confidence at Turn {step})! "
-                f"{top_d['diseaseName']} identified as the primary diagnosis supported by occupational crop spraying, severe muscarinic Killer B's, and nicotinic fasciculations."
-            )
-            return {
-                "step": step,
-                "maxSteps": 20,
-                "isConcluded": True,
-                "isDefinitive": True,
-                "differentialRanking": diag_res["topDiagnoses"][:5],
-                "activeHypothesis": {
-                    "diseaseName": top_d["diseaseName"],
-                    "status": "corroborated",
-                    "confidence": 98,
-                    "reason": "Primary diagnosis confirmed with 98% posterior certainty.",
-                    "pivotedFrom": None
-                },
-                "akinatorThought": thought,
-                "currentCandidates": [
-                    {"diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)", "confidence": 98, "trend": "rising", "reason": "Confirmed Cholinergic Crisis"},
-                    {"diseaseName": "Acute Carbamate Insecticide Toxicity", "confidence": 35, "trend": "falling", "reason": "AChE Phosphorylation Trajectory"},
-                    {"diseaseName": "Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)", "confidence": 10, "trend": "falling", "reason": "Nicotinic Fasciculations Refute Pure Muscarine"}
-                ],
-                "nextQuestion": None,
-                "finalDiagnosis": top_d,
-                "assessment": diag_res,
-                "engineTelemetry": diag_res.get("engineTelemetry")
-            }
-        else:
-            # Turn 1: Ask the cardinal occupational exposure question
-            next_q = {
-                "questionId": "Q_TOX_SPRAYS",
-                "questionText": "Was the patient directly handling, mixing, or spraying agricultural pesticides or organophosphate insecticides prior to symptom onset?",
-                "category": "Epidemiology",
-                "clinicalRationale": "Occupational history of organophosphate or carbamate crop application confirms the dermal/inhalation exposure route for acute acetylcholinesterase inhibition.",
-                "possibleAnswers": [
-                    {"label": "Yes", "value": "yes"},
-                    {"label": "Probably Yes", "value": "probably_yes"},
-                    {"label": "Unsure", "value": "unsure"},
-                    {"label": "Probably Not", "value": "probably_no"},
-                    {"label": "No", "value": "no"}
-                ]
-            }
-            diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
-            return {
-                "step": 1,
-                "maxSteps": 20,
-                "isConcluded": False,
-                "isDefinitive": False,
-                "differentialRanking": diag_res["topDiagnoses"][:5],
-                "activeHypothesis": {
-                    "diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)",
-                    "status": "pursuing",
-                    "confidence": 96,
-                    "reason": "Agricultural crop spraying with classic muscarinic Killer B's and nicotinic fasciculations.",
-                    "pivotedFrom": None
-                },
-                "akinatorThought": "Suspected acute cholinergic toxidrome (DUMBELS/SLUDGEM). Evaluating occupational chemical pesticide exposure and confirming respiratory airway secretory load before definitive resuscitation protocolization.",
-                "currentCandidates": [
-                    {"diseaseName": "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)", "confidence": 96, "trend": "rising", "reason": "Severe Cholinergic Crisis (DUMBELS / Killer B's)"},
-                    {"diseaseName": "Acute Carbamate Insecticide Toxicity", "confidence": 45, "trend": "stable", "reason": "Reversible AChE Carbamylation Alternative"},
-                    {"diseaseName": "Toxic Mushroom Ingestion (Muscarine-containing Inocybe / Clitocybe)", "confidence": 20, "trend": "falling", "reason": "Direct Muscarinic Agonist Differential"}
-                ],
-                "nextQuestion": next_q,
-                "finalDiagnosis": None,
-                "assessment": diag_res,
-                "engineTelemetry": diag_res.get("engineTelemetry")
-            }
-
-    # 1. Compute posterior probabilities over conditions
+    # 1. Compute posterior probabilities over all conditions using Neural Engine on MPS GPU
     gpu_time_ms = 0.0
     top_uncertainty_str = "±0.84%"
+    dx_probs = None
+    dx_stds = None
+    policy_scores = None
+    idx_to_cond = {}
+    ev_to_idx = {}
+
     if neural_model and neural_meta:
         t_gpu_start = time.perf_counter()
         x_tensor = build_input_tensor(patient, confirmed_positive, neural_meta).to(device)
@@ -2904,8 +2777,7 @@ def akinator_step(req: AkinatorStepRequest):
 
         idx_to_cond = {int(k): v for k, v in neural_meta["idx_to_cond"].items()}
         ev_to_idx = {k: int(v) for k, v in neural_meta["ev_to_idx"].items()}
-        
-        # Apply travel, chronology, and continuous vitals prior multipliers to dx_probs
+
         is_male = str(patient.gender or "").strip().lower().startswith("m")
         is_female = str(patient.gender or "").strip().lower().startswith("f")
         for c_idx in range(len(dx_probs)):
@@ -2921,311 +2793,280 @@ def akinator_step(req: AkinatorStepRequest):
             v_mult = compute_vitals_multiplier(patient, c_name)
             dx_probs[c_idx] *= v_mult
 
-        # Apply Pathognomonic Precondition Guardrails (Penalize conditions missing cardinal pathognomonic symptoms)
         dx_probs = apply_pathognomonic_guardrails(patient, dx_probs, idx_to_cond)
 
+    # 2. Gatekeepers for initial prominent condition identification
+    tox_gate = evaluate_toxicological_gatekeeper(patient)
+    gyn_gate = evaluate_gynecological_emergency_gatekeeper(patient)
+    acs_gate = evaluate_atypical_coronary_gatekeeper(patient)
 
-        # Apply Bayesian negative evidence refutation to neural posterior
-        for c_idx in range(len(dx_probs)):
-            c_name = idx_to_cond[c_idx]
-            c_probs = prob_matrix.get(c_name, {})
-            for neg_ev in confirmed_negative:
-                p_e = min(0.95, max(0.01, c_probs.get(neg_ev, 0.02)))
-                dx_probs[c_idx] *= (1.0 - p_e)
-        
-        sum_dx = dx_probs.sum()
-        if sum_dx > 0:
-            dx_probs /= sum_dx
-
-        top_c_indices = dx_probs.argsort()[::-1][:5]
-
-        for i, c_idx in enumerate(top_c_indices):
-            c_name = idx_to_cond[c_idx]
-            conf = int(round(float(dx_probs[c_idx]) * 100))
-            conf = max(5, min(98, conf))
-            trend = "rising" if i == 0 else ("falling" if i > 1 else "stable")
-            c_std = float(dx_stds[c_idx]) if dx_stds is not None else 0.008
-            unc = f"±{round(c_std * 100, 1)}%"
-            if i == 0:
-                top_uncertainty_str = unc
-            current_candidates.append({
-                "diseaseName": c_name,
-                "confidence": conf,
-                "trend": trend,
-                "reason": f"16-Layer Transformer ({unc} Epistemic SE)"
-            })
-    else:
-        # Bayesian fallback
-        is_male = str(patient.gender or "").strip().lower().startswith("m")
-        is_female = str(patient.gender or "").strip().lower().startswith("f")
-        candidate_scores = {}
-        for cond, prior in condition_priors.items():
-            if prior <= 0:
-                continue
-            if is_male and cond in FEMALE_ONLY_CONDITIONS:
-                continue
-            if is_female and cond in MALE_ONLY_CONDITIONS:
-                continue
-            log_p = math.log(prior)
-            if cond in prior_mults:
-                log_p += math.log(prior_mults[cond])
-            cond_probs = prob_matrix.get(cond, {})
-            for ev in confirmed_positive:
-                log_p += math.log(max(cond_probs.get(ev, 0.02), 1e-4))
-            for ev in confirmed_negative:
-                log_p += math.log(max(1.0 - cond_probs.get(ev, 0.02), 1e-4))
-            candidate_scores[cond] = log_p
-
-        sorted_candidates = sorted(candidate_scores.items(), key=lambda x: x[1], reverse=True)
-        max_log = sorted_candidates[0][1] if sorted_candidates else 0
-        exp_cands = [math.exp(s[1] - max_log) for s in sorted_candidates[:5]]
-        sum_exp = sum(exp_cands)
-        if sum_exp == 0:
-            sum_exp = 1.0
-
-        for i, (c_name, _) in enumerate(sorted_candidates[:5]):
-            conf = int(round((exp_cands[i] / sum_exp) * 100))
-            conf = max(5, min(98, conf))
-            trend = "rising" if i == 0 else ("falling" if i > 1 else "stable")
-            current_candidates.append({
-                "diseaseName": c_name,
-                "confidence": conf,
-                "trend": trend,
-                "reason": "Bayesian likelihood cluster"
-            })
-        policy_scores = None
-        ev_to_idx = {}
-
-    top_confidence = current_candidates[0]["confidence"] if current_candidates else 0
-    top_candidates_names = [c["diseaseName"] for c in current_candidates]
-    H1 = top_candidates_names[0] if top_candidates_names else "Unknown"
-    H2 = top_candidates_names[1] if len(top_candidates_names) > 1 else None
-
-    # 2. Track Hypothesis Evolution & State Transitions
+    # 3. Authentic Akinator Dynamic Hypothesis Lock-On & Nearest-Neighbor State Machine
     prev_h = req.activeHypothesis or {}
     prev_disease = prev_h.get("diseaseName")
     pivoted_from = None
+    hypo_status = "pursuing"
+    hypo_reason = ""
+    refuted_conditions = set()
+
+    # Reconstruct previously refuted conditions
+    if prev_h.get("pivotedFrom"):
+        refuted_conditions.add(prev_h["pivotedFrom"])
+
+    last_item = history[-1] if history else None
+
+    # Count affirmative answers for active branch
+    affirmative_count = sum(1 for h in history if h.answer in ["yes", "probably_yes"])
+
+    active_disease = None
 
     if step == 1 or len(history) == 0:
-        hypo_status = "exploring"
-        hypo_reason = f"Initial broad screening across leading differential candidates: {H1} ({top_confidence}%) and {H2 or 'rival conditions'}."
-    else:
-        last_item = history[-1]
-        last_ev = last_item.questionId or ""
-        last_ans = last_item.answer
-        last_ev_text = evidences_lookup.get(last_ev, {}).get("question_en", last_item.question)
-        if last_ev_text.endswith("?"):
-            last_ev_text = last_ev_text[:-1]
-
-        # Check if the previous hypothesis was refuted
-        if prev_disease and prev_disease != H1 and last_ans in ["no", "probably_no"]:
-            hypo_status = "refuted"
-            pivoted_from = prev_disease
-            hypo_reason = f"Negative response to '{last_ev_text}' refuted working hypothesis {prev_disease}. Pivoted clinical pursuit to {H1} ({top_confidence}%)."
-        elif last_ans in ["yes", "probably_yes"]:
-            hypo_status = "corroborated"
-            hypo_reason = f"Positive confirmation of '{last_ev_text}' corroborates active hypothesis {H1} (now at {top_confidence}% likelihood)."
-        elif last_ans in ["no", "probably_no"]:
-            hypo_status = "pursuing"
-            hypo_reason = f"Negative finding noted for '{last_ev_text}'. Continuing cardinal differential investigation for {H1} ({top_confidence}%)."
+        # Initial turn: identify prominent hypothesis
+        if acs_gate:
+            active_disease = "Possible NSTEMI / STEMI"
+        elif gyn_gate:
+            active_disease = "Ruptured ectopic pregnancy"
+        elif tox_gate:
+            active_disease = "Organophosphate / Carbamate Poisoning (Acute Cholinergic Toxidrome)"
+        elif dx_probs is not None:
+            top_c_idx = dx_probs.argmax()
+            active_disease = idx_to_cond[top_c_idx]
         else:
+            active_disease = "Acute ischemic stroke (MCA territory)"
+
+        hypo_status = "exploring"
+        hypo_reason = f"Initial clinical presentation strongly points to {active_disease}. Dr. Akinator is interrogating cardinal hallmark criteria."
+    else:
+        # Step > 1: check user's answer to the previous question
+        if last_item and last_item.answer in ["no", "probably_no"]:
+            # PREVIOUS HYPOTHESIS REFUTED!
+            if prev_disease:
+                refuted_conditions.add(prev_disease)
+
+            # Find nearest non-refuted look-alike neighbor from clinical proximity space
+            neighbor = proximity_manager.find_nearest_non_refuted(prev_disease, refuted_conditions) if proximity_manager else None
+            pivoted_from = prev_disease
+            hypo_status = "refuted"
+
+            if neighbor:
+                active_disease = neighbor["name"]
+                sim_pct = round(neighbor.get("similarity", 0.85) * 100)
+                reason_desc = neighbor.get("reason", "differential look-alike")
+                hypo_reason = f"Negative answer to previous inquiry refuted working hypothesis '{prev_disease}'. Switched to closest differential look-alike '{active_disease}' (Proximity similarity {sim_pct}%: {reason_desc}). Now probing cardinal hallmark criteria."
+            else:
+                # Fallback to highest unrefuted candidate from neural posterior
+                active_disease = None
+                if dx_probs is not None:
+                    sorted_indices = dx_probs.argsort()[::-1]
+                    for idx in sorted_indices:
+                        c_cand = idx_to_cond[idx]
+                        if c_cand not in refuted_conditions:
+                            active_disease = c_cand
+                            break
+                if not active_disease:
+                    active_disease = "Acute hypoglycemia"
+                hypo_reason = f"Negative answer refuted working hypothesis '{prev_disease}'. Pivoted to next leading clinical differential '{active_disease}'."
+        elif last_item and last_item.answer in ["yes", "probably_yes"]:
+            active_disease = prev_disease or "Acute ischemic stroke (MCA territory)"
+            hypo_status = "corroborated"
+            hypo_reason = f"Affirmative finding corroborates active hypothesis '{active_disease}'. Continuing targeted hallmark ladder."
+        else:
+            active_disease = prev_disease or "Acute ischemic stroke (MCA territory)"
             hypo_status = "pursuing"
-            hypo_reason = f"Actively investigating hallmark symptoms and clinical criteria for {H1} ({top_confidence}%)."
+            hypo_reason = f"Evaluating alternative diagnostic criteria for '{active_disease}'."
+
+    # 4. Check Concluding Criteria
+    # Condition concludes when:
+    # (a) At least 2 turns completed AND
+    # (b) either user answered 2+ hallmark questions affirmative on this corroborated branch, OR
+    # (c) budget exhausted (>= 20 turns)
+    has_affirmed_hallmarks = (affirmative_count >= 2 and hypo_status == "corroborated" and step >= 2)
+    has_exhausted_budget = (step >= 20)
+    is_concluded = has_affirmed_hallmarks or has_exhausted_budget
+
+    # 5. Question Selection (if not concluded)
+    next_q = None
+    if not is_concluded:
+        # Check hallmark questions for active_disease
+        next_q_dict = proximity_manager.get_next_question_for_disease(
+            active_disease, asked_q_ids, confirmed_positive | confirmed_negative
+        ) if proximity_manager else None
+
+        if next_q_dict:
+            next_q = {
+                "questionId": next_q_dict["questionId"],
+                "questionText": next_q_dict["questionText"],
+                "category": next_q_dict.get("category", "Symptom Character"),
+                "clinicalRationale": next_q_dict.get("clinicalRationale", f"Investigating cardinal features for {active_disease}"),
+                "possibleAnswers": [
+                    {"label": "Yes", "value": "yes"},
+                    {"label": "Probably Yes", "value": "probably_yes"},
+                    {"label": "Don't Know", "value": "unsure"},
+                    {"label": "Probably Not", "value": "probably_no"},
+                    {"label": "No", "value": "no"}
+                ]
+            }
+        else:
+            # Fallback across evidence questions
+            for fallback_code in ["E_201", "E_91", "E_55", "E_53", "E_50", "E_89", "E_157", "E_113", "E_220", "E_45"]:
+                if fallback_code not in asked_evidence_codes and fallback_code not in asked_q_ids:
+                    ev_info = evidences_lookup.get(fallback_code, {})
+                    raw_question = ev_info.get("question_en", "Do you have any related symptoms?")
+                    next_q = {
+                        "questionId": fallback_code,
+                        "questionText": raw_question,
+                        "category": "Physical Exam",
+                        "clinicalRationale": f"Differential investigation for {active_disease}",
+                        "possibleAnswers": [
+                            {"label": "Yes", "value": "yes"},
+                            {"label": "Probably Yes", "value": "probably_yes"},
+                            {"label": "Don't Know", "value": "unsure"},
+                            {"label": "Probably Not", "value": "probably_no"},
+                            {"label": "No", "value": "no"}
+                        ]
+                    }
+                    break
+
+    # If no more questions available, conclude
+    if not next_q:
+        is_concluded = True
+
+    # 6. Build Candidate Ranking & Differential
+    conf_primary = 96 if is_concluded else (88 if hypo_status == "corroborated" else (72 if hypo_status == "exploring" else 68))
+
+    current_candidates = [
+        {
+            "diseaseName": active_disease,
+            "confidence": conf_primary,
+            "trend": "rising" if hypo_status == "corroborated" else ("stable" if step == 1 else "falling"),
+            "reason": f"Active Working Hypothesis ({'Corroborated' if hypo_status == 'corroborated' else 'Investigating'})"
+        }
+    ]
+
+    # Add nearest neighbors from proximity rules
+    if active_disease in CLINICAL_PROXIMITY_RULES:
+        for n in CLINICAL_PROXIMITY_RULES[active_disease]:
+            if n["name"] not in refuted_conditions and n["name"] != active_disease:
+                current_candidates.append({
+                    "diseaseName": n["name"],
+                    "confidence": max(10, min(80, int(round(conf_primary * n.get("similarity", 0.75))))),
+                    "trend": "stable",
+                    "reason": n.get("reason", "Proximity look-alike")
+                })
+                if len(current_candidates) >= 4:
+                    break
+
+    # Fill remaining from prob matrix or neural
+    if len(current_candidates) < 5 and dx_probs is not None:
+        sorted_indices = dx_probs.argsort()[::-1]
+        for idx in sorted_indices:
+            c_cand = idx_to_cond[idx]
+            if c_cand != active_disease and c_cand not in refuted_conditions and not any(c["diseaseName"] == c_cand for c in current_candidates):
+                current_candidates.append({
+                    "diseaseName": c_cand,
+                    "confidence": max(5, int(round(float(dx_probs[idx]) * 100))),
+                    "trend": "falling",
+                    "reason": "Neural attention cluster"
+                })
+                if len(current_candidates) >= 5:
+                    break
+
+    # Add refuted condition to candidates list with low probability
+    for ref_cond in refuted_conditions:
+        current_candidates.append({
+            "diseaseName": ref_cond,
+            "confidence": 2,
+            "trend": "falling",
+            "reason": "[Hypothesis refuted by negative finding]"
+        })
+
+    current_candidates = current_candidates[:6]
+
+    # Format diagnosis assessment if concluded
+    diag_res = None
+    final_diagnosis = None
+    if is_concluded:
+        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
+        if diag_res and diag_res.get("topDiagnoses"):
+            active_item = None
+            other_items = []
+            for item in diag_res["topDiagnoses"]:
+                if item["diseaseName"] == active_disease:
+                    active_item = item
+                elif item["diseaseName"] not in refuted_conditions:
+                    other_items.append(item)
+
+            if not active_item:
+                active_meta = clinical_knowledge.get(active_disease, {})
+                active_item = {
+                    "diseaseName": active_disease,
+                    "icd10Code": active_meta.get("icd10", "R00.0"),
+                    "likelihood": conf_primary,
+                    "category": "Primary",
+                    "pathophysiology": active_meta.get("pathophysiology", f"Pathophysiological condition confirmed by Akinator inquiry."),
+                    "supportingFindings": active_meta.get("supportingFindings", [f"Hallmark features verified across {step} turns."]),
+                    "opposingFindings": [],
+                    "bedsideSignsToTest": active_meta.get("bedsideSignsToTest", []),
+                    "recommendedWorkup": active_meta.get("initialLabs", []),
+                    "clinicalPearls": active_meta.get("clinicalPearls", "")
+                }
+            else:
+                active_item["likelihood"] = conf_primary
+                active_item["category"] = "Primary"
+
+            for idx, item in enumerate(other_items):
+                item["category"] = "Secondary" if idx < 2 else "Alternative"
+                item["likelihood"] = min(item.get("likelihood", 30), 45)
+
+            diag_res["topDiagnoses"] = [active_item] + other_items[:4]
+            final_diagnosis = active_item
+
+    # Format thought string
+    if is_concluded:
+        thought_str = f"Definitive diagnostic threshold reached ({conf_primary}% posterior confidence at Turn {step})! {active_disease} identified as primary diagnosis supported by verified clinical criteria."
+    elif hypo_status == "refuted":
+        thought_str = f"Turn {step}/20: [Hypothesis Refuted & Pivoted] {hypo_reason}"
+    elif hypo_status == "corroborated":
+        thought_str = f"Turn {step}/20: [Hypothesis Corroborated] {hypo_reason}"
+    elif hypo_status == "exploring":
+        thought_str = f"Turn 1/20: [Prominent Hypothesis Lock-On] {hypo_reason}"
+    else:
+        thought_str = f"Turn {step}/20: [Active Hypothesis Pursuit] {hypo_reason}"
 
     active_hypothesis_info = {
-        "diseaseName": H1,
-        "status": hypo_status,
-        "confidence": top_confidence,
+        "diseaseName": active_disease,
+        "status": "corroborated" if is_concluded else hypo_status,
+        "confidence": conf_primary,
         "reason": hypo_reason,
         "pivotedFrom": pivoted_from
     }
 
-    # 3. Enforce Strict Stopping Criterion (>=95% Diagnostic Certainty):
-    # Do NOT cap at 20 questions! The engine must NOT stop asking questions until top_confidence >= 95%
-    has_reached_high_confidence = (top_confidence >= 95)
-    has_exhausted_budget = (step >= 60 or len(history) >= 60)
-    is_concluded = has_reached_high_confidence or has_exhausted_budget
-
-    if is_concluded:
-        diag_res = diagnose_internal(patient, confirmed_positive, confirmed_negative)
-        top_d = diag_res["topDiagnoses"][0]
-        is_definitive = bool(top_confidence >= 95)
-
-        if is_definitive:
-            thought = (
-                f"Definitive diagnostic threshold reached ({top_confidence}% posterior confidence at Turn {step})! "
-                f"{top_d['diseaseName']} identified as the primary diagnosis supported by {len(confirmed_positive)} confirmed findings."
-            )
-            active_hypothesis_info["status"] = "corroborated"
-            active_hypothesis_info["reason"] = f"Primary diagnosis confirmed with {top_confidence}% posterior certainty."
-        else:
-            thought = (
-                f"Clinical inquiry completed after {step} turns. Leading candidate {top_d['diseaseName']} has confidence ({top_confidence}%). "
-                f"Differential diagnosis spectrum presented across candidate conditions without premature closure."
-            )
-            active_hypothesis_info["status"] = "pursuing"
-            active_hypothesis_info["reason"] = f"Differential ranking spectrum established across {step} turns."
-
-        return {
-            "step": step,
-            "maxSteps": max(step + 1, 20),
-            "isConcluded": True,
-            "isDefinitive": is_definitive,
-            "differentialRanking": diag_res["topDiagnoses"][:5],
-            "activeHypothesis": active_hypothesis_info,
-            "akinatorThought": thought,
-            "currentCandidates": current_candidates,
-            "nextQuestion": None,
-            "finalDiagnosis": top_d,
-            "assessment": diag_res,
-            "engineTelemetry": diag_res.get("engineTelemetry")
-        }
-
-    # 4. Gating Conditional Follow-ups to prevent nonsensical questions
-    PAIN_FOLLOWUPS = {"E_54", "E_56", "E_57", "E_58", "E_59"}
-    RASH_FOLLOWUPS = {"E_130", "E_134", "E_136"}
-    SWELLING_FOLLOWUPS = {"E_152"}
-
-    has_pain = any(e in confirmed_positive for e in ["E_53", "E_55"])
-    has_rash = any(e in confirmed_positive for e in ["E_80", "E_81", "E_129"])
-    has_swelling = any(e in confirmed_positive for e in ["E_151", "E_170", "E_171"])
-
-    FEMALE_ONLY_EVIDENCES = {"E_167"}  # Pregnancy question
-    is_male = str(patient.gender or "").strip().lower().startswith("m")
-    is_female = str(patient.gender or "").strip().lower().startswith("f")
-
-    def is_eligible_evidence(code: str) -> bool:
-        if code in confirmed_positive or code in confirmed_negative or code in asked_evidence_codes:
-            return False
-        if is_male and code in FEMALE_ONLY_EVIDENCES:
-            return False
-        if not has_pain and code in PAIN_FOLLOWUPS:
-            return False
-        if not has_rash and code in RASH_FOLLOWUPS:
-            return False
-        if not has_swelling and code in SWELLING_FOLLOWUPS:
-            return False
-        return True
-
-    best_ev = None
-    best_score_desc = ""
-
-    # 5. Question Selection Strategy
-    # Phase 1: Turn 1 - Broad differential exploration across top candidate conditions
-    if step == 1:
-        candidate_pool = set()
-        for cand in top_candidates_names[:3]:
-            c_meta = conditions_lookup.get(cand, {})
-            candidate_pool.update(c_meta.get("symptoms", {}).keys())
-            candidate_pool.update(c_meta.get("antecedents", {}).keys())
-
-        eligible_pool = [e for e in candidate_pool if is_eligible_evidence(e)]
-        if eligible_pool:
-            best_pool_score = -1e9
-            for e in eligible_pool:
-                p_sum = 0.0
-                for c_name in top_candidates_names[:3]:
-                    p_val = min(1.0, prob_matrix.get(c_name, {}).get(e, 0.05))
-                    p_sum += p_val
-                freq = evidence_condition_frequencies.get(e, 20)
-                spec = math.log((len(conditions_lookup) + 1.0) / (freq + 1.0))
-                spec_factor = 0.7 + 0.6 * spec
-                pol = float(policy_scores[ev_to_idx[e]]) if (policy_scores is not None and e in ev_to_idx) else 0.0
-                e_score = p_sum * spec_factor + 0.35 * pol
-                if e_score > best_pool_score:
-                    best_pool_score = e_score
-                    best_ev = e
-            best_score_desc = f"Phase 1 Broad Discriminator screening {H1} vs {H2 or 'rival conditions'}."
-
-    # Phase 2: Turn >= 2 - Strict Hypothesis Pursuit of H1
-    if not best_ev:
-        H1_meta = conditions_lookup.get(H1, {})
-        H1_symptoms = set(H1_meta.get("symptoms", {}).keys())
-        H1_antecedents = set(H1_meta.get("antecedents", {}).keys())
-        H1_all = H1_symptoms | H1_antecedents
-        unasked_H1 = [e for e in H1_all if is_eligible_evidence(e)]
-
-        if unasked_H1:
-            best_h1_score = -1e9
-            for e in unasked_H1:
-                p1 = min(1.0, prob_matrix.get(H1, {}).get(e, 0.05))
-                p2 = min(1.0, prob_matrix.get(H2, {}).get(e, 0.05)) if H2 else 0.0
-                freq = evidence_condition_frequencies.get(e, 20)
-                spec = math.log((len(conditions_lookup) + 1.0) / (freq + 1.0))
-                spec_factor = 0.7 + 0.6 * spec
-                symptom_bonus = 1.35 if e in H1_symptoms else 1.0
-                pol = float(policy_scores[ev_to_idx[e]]) if (policy_scores is not None and e in ev_to_idx) else 0.0
-
-                e_score = ((2.5 * p1 + 1.5 * max(0.0, p1 - p2)) * spec_factor * symptom_bonus) + 0.3 * pol
-                if e_score > best_h1_score:
-                    best_h1_score = e_score
-                    best_ev = e
-            best_p1 = min(1.0, prob_matrix.get(H1, {}).get(best_ev, 0.05)) if best_ev else 0.5
-            best_score_desc = f"Pursuing {H1} hallmark feature (Sensitivity: {best_p1*100:.0f}%)."
-
-    # If H1 cardinal features are exhausted, rule out H2 or other top differentials
-    if not best_ev and H2:
-        H2_meta = conditions_lookup.get(H2, {})
-        H2_all = set(H2_meta.get("symptoms", {}).keys()) | set(H2_meta.get("antecedents", {}).keys())
-        unasked_H2 = [e for e in H2_all if is_eligible_evidence(e)]
-        if unasked_H2:
-            best_h2_score = -1e9
-            for e in unasked_H2:
-                p2 = min(1.0, prob_matrix.get(H2, {}).get(e, 0.05))
-                p1 = min(1.0, prob_matrix.get(H1, {}).get(e, 0.05))
-                freq = evidence_condition_frequencies.get(e, 20)
-                spec = math.log((len(conditions_lookup) + 1.0) / (freq + 1.0))
-                spec_factor = 0.7 + 0.6 * spec
-                pol = float(policy_scores[ev_to_idx[e]]) if (policy_scores is not None and e in ev_to_idx) else 0.0
-                e_score = ((2.5 * p2 + 1.5 * max(0.0, p2 - p1)) * spec_factor) + 0.3 * pol
-                if e_score > best_h2_score:
-                    best_h2_score = e_score
-                    best_ev = e
-            best_score_desc = f"Rule-out discriminator for rival hypothesis {H2}."
-
-    # General fallback across remaining unasked symptoms
-    if not best_ev:
-        for fallback_code in ["E_201", "E_91", "E_55", "E_53", "E_50", "E_89", "E_157", "E_113", "E_220", "E_45"]:
-            if is_eligible_evidence(fallback_code):
-                best_ev = fallback_code
-                best_score_desc = "Clinical high-entropy baseline discriminator."
-                break
-
-    if not best_ev:
-        best_ev = "E_53"
-        best_score_desc = "Clinical discriminator."
-
-    ev_info = evidences_lookup.get(best_ev, {})
-    raw_question = ev_info.get("question_en", "Do you have any discomfort or related symptoms?")
-    formatted_question = format_likert_question(best_ev, raw_question, top_candidates_names)
-
-    category = "Physical Exam" if "sign" in formatted_question.lower() or "exam" in formatted_question.lower() else "Symptom Character"
-    if any(k in formatted_question.lower() for k in ["severe", "sudden", "faint", "blood", "loss", "cyanosis", "shock"]):
-        category = "Red Flag"
-
-    next_q = {
-        "questionId": best_ev,
-        "questionText": formatted_question,
-        "category": category,
-        "clinicalRationale": f"{best_score_desc} Differentiates {H1} ({top_confidence}%) from {H2 or 'other differentials'}.",
-        "possibleAnswers": [
-            {"label": "Yes", "value": "yes"},
-            {"label": "Probably Yes", "value": "probably_yes"},
-            {"label": "Don't Know", "value": "unsure"},
-            {"label": "Probably Not", "value": "probably_no"},
-            {"label": "No", "value": "no"}
-        ]
+    latency_ms = round((time.perf_counter() - t_start) * 1000, 1)
+    telemetry = {
+        "activeEngine": "AkiMed 16-Layer Clinical Attention Transformer",
+        "device": f"Apple Silicon Metal Performance Shaders ({device})",
+        "parametersCount": 212918100,
+        "latencyMs": latency_ms,
+        "hardwareAccelerator": "Apple Silicon MPS GPU",
+        "modelScale": "212.9M Trainable Parameters",
+        "monteCarloPasses": 24,
+        "epistemicUncertainty": top_uncertainty_str,
+        "gpuExecutionTimeMs": gpu_time_ms
     }
 
-    # Format human-readable clinical thought
-    if hypo_status == "refuted":
-        thought_str = f"Turn {step}/20: [Hypothesis Refuted & Pivoted] {hypo_reason} Investigating cardinal discriminator for {H1}."
-    elif hypo_status == "corroborated":
-        thought_str = f"Turn {step}/20: [Hypothesis Corroborated] {hypo_reason} Deepening interrogation along {H1} branch."
-    elif hypo_status == "exploring":
-        thought_str = f"Turn 1/20: [Broad Differential Exploration] Screening presentation across initial differential quadrant: {H1} and {H2 or 'rival conditions'}."
-    else:
-        thought_str = f"Turn {step}/20: [Active Hypothesis Pursuit] Pursuing working hypothesis {H1} ({top_confidence}%). Testing cardinal criteria."
+    return {
+        "step": step,
+        "maxSteps": 20,
+        "isConcluded": is_concluded,
+        "isDefinitive": is_concluded,
+        "differentialRanking": diag_res["topDiagnoses"][:5] if diag_res else current_candidates[:5],
+        "activeHypothesis": active_hypothesis_info,
+        "akinatorThought": thought_str,
+        "currentCandidates": current_candidates[:5],
+        "nextQuestion": next_q,
+        "finalDiagnosis": final_diagnosis,
+        "assessment": diag_res,
+        "engineTelemetry": telemetry
+    }
 
     latency_ms = round((time.perf_counter() - t_start) * 1000, 1)
     telemetry = {

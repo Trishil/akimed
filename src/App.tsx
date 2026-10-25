@@ -345,23 +345,25 @@ export default function App() {
         
         {/* Akademia-Style Hero Headline Section */}
         <section className="relative pt-4 pb-2">
-          {/* Circular Stamp Graphic Badge (Akademia Reference Style) */}
-          <div className="absolute -top-3 right-2 sm:right-6 pointer-events-none select-none hidden md:block">
-            <div className="relative w-28 h-28 flex items-center justify-center">
-              <svg className="w-full h-full animate-spin-slow text-zinc-900" viewBox="0 0 100 100">
+          {/* Circular Stamp Graphic Badge (Akademia Reference Style) - Enlarged */}
+          <div className="absolute -top-6 right-2 sm:right-6 pointer-events-none select-none hidden md:block">
+            <div className="relative w-40 h-40 flex items-center justify-center">
+              <svg className="w-full h-full animate-spin-slow text-indigo-900" viewBox="0 0 120 120">
                 <path
                   id="circlePath"
-                  d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0"
+                  d="M 60, 60 m -45, 0 a 45,45 0 1,1 90,0 a 45,45 0 1,1 -90,0"
                   fill="transparent"
                 />
-                <text className="text-[7px] font-black uppercase tracking-widest fill-zinc-900">
+                <text className="text-[7px] font-black uppercase tracking-[0.24em] fill-indigo-950">
                   <textPath href="#circlePath">
                     • AKIMED 16-LAYER TRANSFORMER • 212.9M PARAMETERS • APPLE MPS •
                   </textPath>
                 </text>
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl">🩺</span>
+                <div className="w-16 h-16 rounded-full bg-indigo-50 border-2 border-indigo-900 flex items-center justify-center shadow-tactile-sm">
+                  <span className="text-3xl">🩺</span>
+                </div>
               </div>
             </div>
           </div>
@@ -370,12 +372,12 @@ export default function App() {
             {/* Inline Capsule Headline (Akademia Reference Style) */}
             <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tight leading-[1.15] mb-4">
               Find{' '}
-              <span className="inline-flex items-center mx-1 px-3 py-0.5 rounded-full bg-emerald-300 text-zinc-950 text-xs sm:text-sm font-black border-2 border-zinc-900 align-middle shadow-tactile-sm">
+              <span className="inline-flex items-center mx-1 px-3 py-0.5 rounded-full bg-blue-100 text-blue-950 text-xs sm:text-sm font-black border-2 border-indigo-950 align-middle shadow-tactile-sm">
                 212.9M AI
               </span>{' '}
               differential{' '}
               <span className="highlighter-stroke">diagnoses</span> & triage{' '}
-              <span className="inline-flex items-center mx-1 px-2.5 py-0.5 rounded-full bg-yellow-300 text-zinc-950 text-xs sm:text-sm font-black border-2 border-zinc-900 align-middle shadow-tactile-sm">
+              <span className="inline-flex items-center mx-1 px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-950 text-xs sm:text-sm font-black border-2 border-indigo-950 align-middle shadow-tactile-sm">
                 ⚡ MPS GPU
               </span>
             </h1>
@@ -384,24 +386,24 @@ export default function App() {
               An evidence-based diagnostic Akinator and 5-tier ESI emergency triage engine powered by a 16-Layer Pre-LN Clinical Attention Transformer (212.9M weights). Authentic 32-pass Monte Carlo attention ensembling executed natively on Apple Silicon Metal shaders.
             </p>
 
-            {/* Quick Stats Pill Strip */}
+            {/* Quick Stats Pill Strip - Royal Blue & Purple Infused */}
             <div className="flex flex-wrap items-center gap-2.5 mt-5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border-2 border-zinc-900 text-xs font-bold text-zinc-800 shadow-tactile-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border-2 border-indigo-950 text-xs font-bold text-zinc-800 shadow-tactile-sm">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                 <span>16-Layer Transformer (Pre-LN / 212.9M Params)</span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border-2 border-zinc-900 text-xs font-bold text-zinc-800 shadow-tactile-sm">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border-2 border-indigo-950 text-xs font-bold text-zinc-800 shadow-tactile-sm">
                 <span>Top-3 Accuracy:</span>
-                <span className="text-emerald-600 font-black">99.82%</span>
+                <span className="text-indigo-600 font-black">99.82%</span>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowTelemetryModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer border-2 border-zinc-900"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-xs font-black shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer border-2 border-indigo-950"
               >
-                <Cpu className="w-3.5 h-3.5 text-teal-400" />
+                <Cpu className="w-3.5 h-3.5 text-cyan-200" />
                 <span>212.9M Neural Architecture & MPS Kernel</span>
               </button>
             </div>
@@ -477,7 +479,7 @@ export default function App() {
       <footer className="border-t-2 border-zinc-900/10 bg-white/70 py-6 mt-12 text-center text-xs text-zinc-600">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-bold text-[10px]">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white flex items-center justify-center font-black text-[10px] shadow-sm">
               A
             </div>
             <span className="font-extrabold text-zinc-900">AkiMed Studio</span>
