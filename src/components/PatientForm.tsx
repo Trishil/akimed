@@ -117,33 +117,33 @@ export const PatientForm: React.FC<PatientFormProps> = ({
   return (
     <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-tactile text-zinc-900 relative transition-all">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b border-zinc-200/80 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b-2 border-zinc-900/10 gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs ${
-            activeMode === 'akinator' ? 'bg-zinc-950 text-emerald-400' : 'bg-rose-600 text-white'
+          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shadow-tactile-sm border-2 border-zinc-900 ${
+            activeMode === 'akinator' ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'
           }`}>
             {activeMode === 'akinator' ? (
-              <Brain className="w-5 h-5 text-emerald-400" />
+              <Brain className="w-5 h-5 text-zinc-950" />
             ) : (
               <Activity className="w-5 h-5 text-white" />
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black text-zinc-900 tracking-tight font-serif">
                 {activeMode === 'akinator'
                   ? 'Dr. Akinator Consultation & Patient Intake'
-                  : 'Emergency Triage & Differential Intake'}
+                  : 'Direct Emergency Triage & Differential Intake'}
               </h2>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+              <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border-2 border-zinc-900 shadow-tactile-sm ${
                 activeMode === 'akinator'
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                  : 'bg-rose-50 text-rose-800 border-rose-200'
+                  ? 'bg-emerald-200 text-zinc-950'
+                  : 'bg-rose-200 text-zinc-950'
               }`}>
-                {activeMode === 'akinator' ? 'Interactive Inquiry' : 'Instant Protocol'}
+                {activeMode === 'akinator' ? 'Interactive Inquiry' : '⚡ MPS GPU Triage'}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 font-normal mt-0.5">
+            <p className="text-xs text-zinc-500 font-medium">
               {activeMode === 'akinator'
                 ? 'Enter presenting symptoms, vitals, or clinical notes. Dr. Akinator will ask targeted questions to pinpoint the diagnosis.'
                 : 'Paste doctor notes, clinical vignettes, or symptoms for instant 5-tier ESI Triage and full MBBS SOAP Differential.'}
@@ -151,16 +151,16 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           </div>
         </div>
 
-        {/* Clean Reset Action */}
+        {/* Clean Tactile Reset Action */}
         <div className="flex items-center self-start sm:self-auto">
           <button
             type="button"
             onClick={handleResetForm}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border border-zinc-200 transition-all cursor-pointer flex items-center gap-1.5"
+            className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-zinc-900 shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
             title="Clear all fields and reset encounter"
           >
-            <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
-            <span>New Case / Clear</span>
+            <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+            <span>Reset / New Case</span>
           </button>
         </div>
       </div>
