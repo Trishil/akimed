@@ -344,6 +344,80 @@ const CLINICAL_CONCEPTS_DATABASE: ClinicalConceptDefinition[] = [
       'itchy welts', 'anaphylaxis', 'lip swelling', 'facial swelling'
     ],
     typoVariants: ['rashe', 'anafilaxis', 'urtecarea']
+  },
+  {
+    id: 'E_156_HEMIPARESIS',
+    canonical: 'Unilateral Focal Weakness / Hemiparesis',
+    category: 'Sign',
+    exactPhrases: [
+      'right-sided weakness', 'left-sided weakness', 'unilateral weakness', 'focal weakness',
+      'hemiparesis', 'hemiplegia', 'facial droop', 'arm drift', 'arm weakness', 'leg weakness',
+      'one-sided weakness', 'weakness on right side', 'weakness on left side',
+      'right side weakness', 'left side weakness', 'weakness'
+    ],
+    flexiblePatterns: [
+      /(?:right|left|one)[\s-]sided\s+(?:weakness|numbness|paralysis)/i,
+      /(?:facial|face)\s+droop(?:ing)?/i,
+      /arm\s+drift/i
+    ],
+    typoVariants: ['right sided weakness', 'left sided weakness', 'hemiparesis', 'hemiplegia']
+  },
+  {
+    id: 'E_DYSARTHRIA',
+    canonical: 'Dysarthria / Slurred Speech / Aphasia',
+    category: 'Sign',
+    exactPhrases: [
+      'slurred speech', 'slurring speech', 'difficulty speaking', 'unable to speak',
+      'garbled speech', 'dysarthria', 'aphasia', 'expressive aphasia', 'receptive aphasia',
+      'loss of speech', 'speech difficulty'
+    ],
+    flexiblePatterns: [
+      /slurr(?:ed|ing)\s+speech/i,
+      /difficul(?:ty|t)\s+(?:speaking|talking)/i,
+      /trouble\s+speaking/i
+    ],
+    typoVariants: ['slurred speach', 'sluring speech', 'dysarthria', 'aphasia']
+  },
+  {
+    id: 'E_CONFUSION',
+    canonical: 'Acute Confusion / Altered Sensorium',
+    category: 'Sign',
+    exactPhrases: [
+      'severe confusion', 'acute confusion', 'confusion', 'altered mental status',
+      'disorientation', 'disoriented', 'confused', 'delirium', 'dazed', 'somnolent',
+      'lethargic', 'obtunded'
+    ],
+    flexiblePatterns: [
+      /(?:severe|acute)?\s*confusion/i,
+      /altered\s+mental\s+status/i
+    ],
+    typoVariants: ['confussion', 'confused', 'desoriented']
+  },
+  {
+    id: 'E_SUDDEN',
+    canonical: 'Sudden / Abrupt Onset (Hyperacute Timeline)',
+    category: 'Symptom',
+    exactPhrases: [
+      'sudden onset', 'abrupt onset', 'thunderclap', 'began abruptly', 'struck suddenly', 'hyperacute'
+    ],
+    flexiblePatterns: [
+      /sudden(?:ly)?\s+(?:onset|started|began)/i,
+      /abrupt(?:ly)?\s+(?:onset|started|began)/i
+    ],
+    typoVariants: ['suden onset', 'sudden onset']
+  },
+  {
+    id: 'DX_CVA',
+    canonical: 'Acute Ischemic Stroke / CVA Suspicion',
+    category: 'Sign',
+    exactPhrases: [
+      'stroke', 'acute stroke', 'cva', 'cerebrovascular accident', 'brain attack', 'tia', 'transient ischemic attack'
+    ],
+    flexiblePatterns: [
+      /\b(?:acute\s+)?stroke\b/i,
+      /\bcva\b/i
+    ],
+    typoVariants: ['strok', 'ischemic stroke']
   }
 ];
 
@@ -483,8 +557,9 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
   // C. DURATION & CHRONOLOGY PARSING
   // -------------------------------------------------------------------------
   let parsedDuration: string | undefined;
-  const durationMatch = lower.match(/\b(?:for|duration|started|onset|since)\s+([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?))\b/) ||
-                        lower.match(/\b([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?))\s*(?:ago|duration|history)\b/) ||
+  const durationMatch = lower.match(/\b(?:duration|timeline)\s*[:\-]\s*([^\n\r.]+)/i) ||
+                        lower.match(/\b(?:for|started|since)\s+([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?|minutes?|mins?))\b/) ||
+                        lower.match(/\b([0-9]+\s*(?:days?|hours?|weeks?|months?|hrs?|minutes?|mins?))\s*(?:ago|duration|history)\b/) ||
                         lower.match(/\b(acute onset|abrupt onset|began abruptly|abruptly|sudden onset|sudden|gradual onset|cyclical every \d+ hours?)\b/);
 
   if (durationMatch) {
@@ -501,10 +576,10 @@ export function parseClinicalSearchQuery(inputText: string): ClinicalSearchParse
     .replace(/\\?\$\s*\\text\{[^}]+\}_?[0-9]*\s*\\?\$|\$[^$]+\$/gi, ' spo2 ')
     .replace(/\s+/g, ' ');
 
-  // Temperature
-  const tempMatch = cleanForVitals.match(/(?:temp|t|temperature)[:\s]*([34][0-9](?:\.[0-9])?)\s*(?:c|°c)?\b/) ||
-                    cleanForVitals.match(/\b([34][0-9]\.[0-9])\s*(?:c|°c)\b/) ||
-                    cleanForVitals.match(/(?:temp|temperature)[:\s]*(10[0-5](?:\.[0-9])?)\s*(?:f|°f)?\b/);
+  // Temperature (Strict boundary guarding to prevent matching trailing 't' from words like 'onset')
+  const tempMatch = cleanForVitals.match(/\b(?:temp(?:erature)?|t(?=[:\s=]))[:\s=]*(3[5-9](?:\.[0-9])?|4[0-2](?:\.[0-9])?)\s*(?:c|°c)?\b/) ||
+                    cleanForVitals.match(/\b(3[5-9]\.[0-9]|4[0-2]\.[0-9])\s*(?:c|°c)\b/) ||
+                    cleanForVitals.match(/\b(?:temp(?:erature)?|t(?=[:\s=]))[:\s=]*(9[5-9]|10[0-6](?:\.[0-9])?)\s*(?:f|°f)?\b/);
   if (tempMatch) {
     let tVal = parseFloat(tempMatch[1]);
     if (tVal > 90) {
@@ -974,7 +1049,7 @@ export function applyParsedSearchToPatientProfile(
 
   return {
     ...prev,
-    chiefSymptoms: (isNewEncounter && extractedChiefComplaint) ? extractedChiefComplaint : prev.chiefSymptoms,
+    chiefSymptoms: rawInputText !== undefined ? rawInputText : prev.chiefSymptoms,
     age: parsed.parsedDemographics.age ?? prev.age,
     gender: parsed.parsedDemographics.gender ?? prev.gender,
     isPregnant,

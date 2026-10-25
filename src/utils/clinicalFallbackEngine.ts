@@ -31,6 +31,10 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
   const hasGynTriggers = s.includes('ectopic') || s.includes('spotting') || s.includes('vaginal') || s.includes('amenorrhea') || s.includes('menstrual period') || s.includes('lmp') || s.includes('cervical motion') || s.includes('cmt') || s.includes('chandelier') || s.includes('shoulder') || s.includes('kehr') || s.includes('pid') || s.includes('pelvic inflammatory');
   const isRupturedEctopicSuspect = isFemaleReproductive && hasGynLowerPain && (hasGynTriggers || shockIndex >= 0.9);
 
+  const isStrokeSuspect =
+    (s.includes('weakness') || s.includes('slurred') || s.includes('speech') || s.includes('hemiparesis') || s.includes('facial droop') || s.includes('stroke') || s.includes('cva')) &&
+    (s.includes('right-sided') || s.includes('left-sided') || s.includes('unilateral') || s.includes('slurred') || s.includes('confusion') || s.includes('arm drift') || s.includes('sudden'));
+
   // Level 1: Resuscitation (immediate life threat)
   if (
     isOrganophosphateOrCholinergic ||
@@ -112,6 +116,13 @@ export function evaluateTriageDeterministic(patient: PatientProfile): TriageEval
       rationale = 'Meningeal signs concerning for acute central nervous system infection.';
     } else if (s.includes('abdominal') || s.includes('peritoneal')) {
       rationale = 'Acute abdominal symptoms with physiological distress requiring emergent evaluation.';
+    } else if (isStrokeSuspect || s.includes('slurred') || s.includes('weakness') || s.includes('facial droop')) {
+      rationale = 'Acute focal neurological deficits (unilateral motor weakness, dysarthria, sudden confusion) concerning for Acute Ischemic Stroke / CVA within the critical reperfusion window.';
+      redFlags = [
+        'Acute focal neurological deficit (Cincinnati Prehospital Stroke Scale positive)',
+        'Active time-sensitive window for IV thrombolysis (< 4.5h) and mechanical thrombectomy (< 24h)',
+        'Risk of rapid neurological deterioration, aspiration, or cerebral edema',
+      ];
     }
 
     return {
@@ -266,6 +277,10 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
   const hasGynLowerPain = s.includes('pelvic') || s.includes('lower abdomen') || s.includes('rlq') || s.includes('llq') || s.includes('adnexal') || s.includes('lower quadrant') || s.includes('right-sided lower') || s.includes('right lower');
   const hasGynTriggers = s.includes('ectopic') || s.includes('spotting') || s.includes('vaginal') || s.includes('amenorrhea') || s.includes('menstrual period') || s.includes('lmp') || s.includes('cervical motion') || s.includes('cmt') || s.includes('chandelier') || s.includes('shoulder') || s.includes('kehr') || s.includes('pid') || s.includes('pelvic inflammatory');
   const isRupturedEctopicSuspect = isFemaleReproductive && hasGynLowerPain && hasGynTriggers;
+
+  const isStrokeSuspect =
+    (s.includes('weakness') || s.includes('slurred') || s.includes('speech') || s.includes('hemiparesis') || s.includes('facial droop') || s.includes('stroke') || s.includes('cva')) &&
+    (s.includes('right-sided') || s.includes('left-sided') || s.includes('unilateral') || s.includes('slurred') || s.includes('confusion') || s.includes('arm drift') || s.includes('sudden'));
 
   // Scenario 0: Diabetic Ketoacidosis (DKA) / Severe Metabolic Acidosis
   if (
@@ -850,6 +865,85 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
     });
   }
 
+  // Scenario 5: Acute Ischemic Stroke / Focal Neurological Deficits (MCA Territory / CVA)
+  else if (isStrokeSuspect) {
+    differentials.push({
+      diseaseName: 'Acute Ischemic Stroke (MCA territory)',
+      icd10Code: 'I63.9',
+      likelihood: 95,
+      category: 'Primary',
+      pathophysiology: 'Thromboembolic or large-artery atherothrombotic occlusion of the Middle Cerebral Artery (MCA) leading to rapid cerebral tissue hypoperfusion, ischemic penumbra formation, and cytotoxic edema. Disruption of the precentral motor cortex and internal capsule produces contralateral hemiparesis (arm/face > leg), while involvement of Broca/Wernicke cortical speech networks causes expressive or receptive aphasia and severe dysarthria.',
+      supportingFindings: [
+        'Sudden, hyperacute onset of unilateral motor weakness (right-sided hemiparesis)',
+        'Severe dysarthria (slurred speech) and expressive speech difficulty',
+        'Acute confusion and altered sensorium following abrupt vascular occlusion',
+        'Presentation within critical reperfusion window (< 4.5 hours for IV thrombolysis / < 24 hours for mechanical thrombectomy)'
+      ],
+      opposingFindings: [
+        'Normal capillary blood glucose will exclude acute severe hypoglycemia as stroke mimic',
+        'Absence of preceding fever, photophobia, or meningismus refutes acute bacterial encephalitis / meningitis'
+      ],
+      bedsideSignsToTest: [
+        'STAT Point-of-Care Capillary Blood Glucose (mandatory immediate stroke mimic rule-out)',
+        'Cincinnati Prehospital Stroke Scale (CPSS) / FAST: Facial droop, Arm drift, Speech abnormality, Time',
+        'National Institutes of Health Stroke Scale (NIHSS: standardized quantification of neurological deficits)',
+        'Cranial nerve examination: visual fields by confrontation, gaze deviation towards lesion, pupil reactivity',
+        'Upper and lower extremity motor testing evaluating pronator drift and asymmetric power'
+      ],
+      recommendedWorkup: {
+        initialLabs: [
+          'STAT Point-of-Care Capillary Blood Glucose (rule out hypoglycemia)',
+          'Complete Blood Count and Platelet Count (> 100,000/mcL required for IV thrombolysis)',
+          'Coagulation Profile (PT/INR < 1.7, aPTT, Thrombin Time if on DOACs)',
+          'Basic Metabolic Panel (Serum Creatinine and electrolytes for CTA contrast)',
+          'Serial cardiac troponin and 12-lead ECG (evaluate for cardioembolic Atrial Fibrillation)'
+        ],
+        confirmatoryTests: [
+          'Non-Contrast Head CT (Door-to-CT < 20 min): exclude acute intracranial hemorrhage and calculate ASPECTS score',
+          'CT Angiography (CTA) of Head and Neck: detect Large Vessel Occlusion (LVO) in ICA/M1/M2 segments eligible for mechanical thrombectomy',
+          'CT Perfusion (CTP) or MRI DWI/FLAIR mismatch (assess salvageable ischemic penumbra vs infarct core)'
+        ],
+        imaging: [
+          'STAT Non-Contrast Brain CT',
+          'Multiphase CT Angiography (CTA) Head and Neck'
+        ]
+      },
+      clinicalPearls: 'TIME IS BRAIN: 1.9 million neurons die every minute during an untreated large vessel ischemic stroke! Door-to-needle time target for IV thrombolysis (Tenecteplase 0.25 mg/kg or Alteplase 0.9 mg/kg) is < 45 minutes from ED arrival. Never administer Aspirin or Heparin before the non-contrast head CT has completely excluded acute intracerebral hemorrhage!'
+    });
+
+    differentials.push({
+      diseaseName: 'Acute Hypoglycemia (Stroke Mimic)',
+      icd10Code: 'E16.2',
+      likelihood: 18,
+      category: 'Secondary',
+      pathophysiology: 'Severe neuroglycopenia leading to reversible localized cerebral metabolic dysfunction that can mimic focal hemispheric stroke deficits ("hypoglycemic hemiplegia").',
+      supportingFindings: ['Acute onset of neurological deficit and confusion'],
+      opposingFindings: ['Usually accompanied by adrenergic surge (diaphoresis, tremors, tachycardia); resolves immediately within minutes of IV Dextrose administration'],
+      bedsideSignsToTest: ['Immediate fingerstick capillary blood glucose (must be checked within 2 minutes of arrival)'],
+      recommendedWorkup: {
+        initialLabs: ['Fingerstick blood glucose', 'BMP'],
+        confirmatoryTests: ['Complete reversal of focal neurological deficits upon administration of 50 mL 50% Dextrose (D50W) IV']
+      },
+      clinicalPearls: 'Always check point-of-care blood glucose before calling the stroke team or sending the patient to the CT scanner!'
+    });
+
+    differentials.push({
+      diseaseName: 'Spontaneous Intracerebral Hemorrhage (ICH)',
+      icd10Code: 'I61.9',
+      likelihood: 15,
+      category: 'Alternative',
+      pathophysiology: 'Rupture of small penetrating arteries damaged by chronic hypertension (Charcot-Bouchard microaneurysms) in basal ganglia or thalamus leading to intraparenchymal hematoma.',
+      supportingFindings: ['Focal motor deficits, severe hypertension, acute confusion'],
+      opposingFindings: ['Usually presents with severe headache, vomiting, and rapidly declining GCS within minutes; non-contrast CT head is the definitive discriminator'],
+      bedsideSignsToTest: ['GCS progression tracking', 'Pupil symmetry and light reflex'],
+      recommendedWorkup: {
+        initialLabs: ['CBC, PT/INR, aPTT, Platelets'],
+        confirmatoryTests: ['Non-contrast CT head demonstrating hyperdense intraparenchymal blood with mass effect']
+      },
+      clinicalPearls: 'Non-contrast head CT is 100% sensitive for acute intraparenchymal hemorrhage and must be reviewed before administering any thrombolytic agent.'
+    });
+  }
+
   // General Fallback
   else {
     differentials.push({
@@ -895,8 +989,17 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
       'CAUTION REGARDING NITRATES: DO NOT administer sublingual nitroglycerin until right ventricular infarction (ST elevation in V4R) and severe hypotension are ruled out, as nitrates precipitate profound, refractory venodilatory shock.',
       'CONTINUOUS CARDIAC MONITORING & RESUSCITATION: Connect continuous 12-lead telemetry, pulse oximetry (supplemental O2 if SpO2 < 90%), and establish two large-bore 18G peripheral IV lines.'
     ];
-  } else if (isAtypicalAcsSuspect) {
-    differentialSummary = `Patient is a ${patient.age}-year-old female with diabetes presenting with an anginal equivalent: deep gnawing epigastric discomfort radiating to the back, nausea, vomiting, diaphoresis, audible S4 gallop, and bibasilar crackles (Killip Class II). ESI Triage Level ${triage.level} (${triage.levelName}). Leading diagnosis: Possible NSTEMI / STEMI (95%), followed by Acute ST-elevation myocardial infarction (STEMI) (72%). Immediate STAT 12-lead ECG (< 10 min), Troponin, Aspirin 325 mg chewed, Metformin withholding, and Cath Lab activation required.`;
+  } else if (isStrokeSuspect) {
+    immediateActionPlan = [
+      'CODE STROKE ACTIVATION: Immediate stroke team and attending neurologist bedside activation.',
+      'STAT NON-CONTRAST HEAD CT DOOR-TO-CT < 20 MIN: Transport patient directly to CT scanner to rule out acute intracerebral hemorrhage.',
+      'STAT POINT-OF-CARE GLUCOSE: Check immediate capillary fingerstick glucose to rule out hypoglycemia stroke mimic.',
+      'REPERFUSION EVALUATION (< 4.5 HOUR WINDOW): Determine exact Last Known Well (LKW) time; assess eligibility for IV Tenecteplase (0.25 mg/kg) or Alteplase (0.9 mg/kg).',
+      'CTA HEAD & NECK: Obtain immediate CT Angiography to evaluate for Large Vessel Occlusion (LVO) eligible for endovascular mechanical thrombectomy (< 24h window).',
+      'BLOOD PRESSURE TARGETING: Maintain BP < 185/110 mmHg if candidate for thrombolysis (IV Labetalol or Nicardipine infusion).',
+      'STRICT NPO STATUS: Keep patient strictly NPO (nothing by mouth) to prevent fatal aspiration pneumonia until formal swallowing screen.',
+      'CRITICAL CONTRAINDICATION: DO NOT administer Aspirin, Clopidogrel, or Heparin until the non-contrast head CT has definitively ruled out acute hemorrhage.'
+    ];
   } else if (isRupturedEctopicSuspect) {
     immediateActionPlan = [
       'EMERGENCY RESUSCITATION & MTP: Immediately activate Massive Transfusion Protocol (MTP). Request 4-6 units of uncrossmatched Type-O negative PRBCs on standby.',
@@ -912,18 +1015,9 @@ export function generateDeterministicAssessment(patient: PatientProfile): Diagno
   if (isOrganophosphateOrCholinergic) {
     differentialSummary = `Patient presents with acute cholinergic crisis ("Killer B's": severe bronchorrhea, bronchospasm, bradycardia, miosis, copious secretions, and fasciculations) following commercial agricultural crop spraying. ESI Triage Level 1 (Resuscitation). Leading diagnosis: Organophosphate / Carbamate Poisoning (96%). Immediate decontamination and high-dose IV Atropine protocol initiated.`;
   } else if (isAtypicalAcsSuspect) {
-    immediateActionPlan = [
-      'EMERGENCY ACS & CATH LAB PROTOCOL: Immediate Senior Attending Cardiologist bedside notification and Cardiac Catheterization Lab standby activation.',
-      'STAT 12-LEAD ECG DOOR-TO-ECG < 10 MIN: Obtain immediate 12-lead ECG; include right-sided leads (V3R-V4R) to evaluate for RV infarction and posterior leads (V7-V9) to rule out isolated posterior STEMI.',
-      'STAT CARDIAC ENZYMES: Draw STAT high-sensitivity cardiac Troponin I/T (hs-cTn: 0h, 1h, 3h serial protocol), CBC, CMP, and Coagulation panel.',
-      'DUAL ANTIPLATELET THERAPY (DAPT): Administer non-enteric coated Aspirin 325 mg orally CHEWED STAT, plus P2Y12 inhibitor loading (Ticagrelor 180 mg PO or Clopidogrel 600 mg PO).',
-      'CRITICAL MEDICATION PRECAUTION (METFORMIN): IMMEDIATELY WITHHOLD METFORMIN prior to coronary angiography / contrast injection due to high risk of contrast-induced nephropathy triggering fatal Metformin-Associated Lactic Acidosis (MALA).',
-      'SYSTEMIC ANTICOAGULATION: Administer weight-based IV Unfractionated Heparin (60 units/kg bolus, maximum 4,000 units, followed by 12 units/kg/hr infusion) targeting an aPTT of 50-70 seconds.',
-      'CAUTION REGARDING NITRATES: DO NOT administer sublingual nitroglycerin until right ventricular infarction (ST elevation in V4R) and severe hypotension are ruled out, as nitrates precipitate profound, refractory venodilatory shock.',
-      'CONTINUOUS CARDIAC MONITORING & RESUSCITATION: Connect continuous 12-lead telemetry, pulse oximetry (supplemental O2 if SpO2 < 90%), and establish two large-bore 18G peripheral IV lines.'
-    ];
-  } else if (isAtypicalAcsSuspect) {
     differentialSummary = `Patient is a ${patient.age}-year-old female with diabetes presenting with an anginal equivalent: deep gnawing epigastric discomfort radiating to the back, nausea, vomiting, diaphoresis, audible S4 gallop, and bibasilar crackles (Killip Class II). ESI Triage Level ${triage.level} (${triage.levelName}). Leading diagnosis: Possible NSTEMI / STEMI (95%), followed by Acute ST-elevation myocardial infarction (STEMI) (72%). Immediate STAT 12-lead ECG (< 10 min), Troponin, Aspirin 325 mg chewed, Metformin withholding, and Cath Lab activation required.`;
+  } else if (isStrokeSuspect) {
+    differentialSummary = `Patient presents with acute focal neurological deficits: right-sided weakness, slurred speech (dysarthria), and severe acute confusion within 45 minutes of onset. ESI Triage Level ${triage.level} (${triage.levelName}). Leading diagnosis: Acute Ischemic Stroke (MCA territory) (95%). Immediate Code Stroke activation, STAT non-contrast Head CT (< 20 min), and IV thrombolysis / thrombectomy evaluation indicated.`;
   } else if (isRupturedEctopicSuspect) {
     differentialSummary = `Patient is a ${patient.age}-year-old female presenting with acute lower abdominal pain, 7-week amenorrhea, vaginal spotting, Kehr's sign (referred shoulder pain), and Class III Hemorrhagic Shock (BP ${sbp}/${v?.bpDiastolic || '?'}, HR ${hr}, Shock Index: ${shockIndex.toFixed(2)}). ESI Triage Level 1 (Resuscitation). Leading diagnosis: Ruptured Ectopic Pregnancy (96%). Immediate Massive Transfusion Protocol activation, STAT beta-hCG, bedside FAST/TVUS, and emergent OB-GYN operative hemostasis required.`;
   }
