@@ -31,12 +31,12 @@
   box-shadow: 2px 2px 0px 0px #18181B;
 }
 
-/* Organic Paper Speckle Texture */
+/* Organic Paper Speckle Texture - Tactile Dot Grid */
 .bg-paper-pattern {
   background-color: #FAF8F5;
-  background-image: radial-gradient(#d1cfc7 0.75px, transparent 0.75px), radial-gradient(#d1cfc7 0.75px, #FAF8F5 0.75px);
-  background-size: 30px 30px;
-  background-position: 0 0, 15px 15px;
+  background-image: radial-gradient(circle, #b8b5aa 2px, transparent 2px), radial-gradient(circle, #b8b5aa 2px, transparent 2px);
+  background-size: 28px 28px;
+  background-position: 0 0, 14px 14px;
 }
 
 /* Yellow Highlighter Brush Stroke Behind Headlines */
