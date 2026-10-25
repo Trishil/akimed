@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Stethoscope, Brain, Activity, Sparkles, BookOpen, Cpu, RotateCcw, Sliders } from 'lucide-react';
+import { Brain, Activity, Cpu } from 'lucide-react';
 import { TrainingTelemetryModal } from './TrainingTelemetryModal';
 
 interface HeaderProps {
@@ -8,8 +8,7 @@ interface HeaderProps {
   onResetPatient: () => void;
 }
 
-
-export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onResetPatient }) => {
+export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const [engineStatus, setEngineStatus] = useState<{
     activeEngine: string;
     engineName: string;
@@ -34,74 +33,80 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onReset
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#FAF8F5]/90 backdrop-blur-md border-b-2 border-zinc-900/10 text-zinc-900 transition-all">
+      <header className="sticky top-0 z-40 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-zinc-200/80 text-zinc-900 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between py-3.5 gap-3">
+          <div className="flex items-center justify-between py-3">
             
-            {/* Brand Logo - Akademia Humanist Aesthetic */}
-            <div className="flex items-center space-x-3 cursor-pointer select-none" onClick={() => setActiveTab('akinator')}>
-              <div className="w-10 h-10 rounded-2xl bg-zinc-900 text-white flex items-center justify-center shadow-tactile-sm border-2 border-zinc-900 transition-transform hover:-rotate-3">
-                <Stethoscope className="w-5 h-5 text-teal-400 font-bold" />
+            {/* Clean Brand Mark & Status */}
+            <div 
+              className="flex items-center gap-3 cursor-pointer select-none group" 
+              onClick={() => setActiveTab('akinator')}
+            >
+              <div className="w-9 h-9 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-xs ring-1 ring-zinc-800/20 transition-transform group-hover:scale-105">
+                <svg className="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3v18" />
+                  <path d="M3 12h5l2-4 4 8 2-4h5" />
+                </svg>
               </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-2xl font-black tracking-tight text-zinc-900">
-                    AkiMed<span className="text-teal-600">.</span>
-                  </span>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-950 border border-emerald-300">
-                    Clinical AI
-                  </span>
-                  <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border hidden sm:inline-flex items-center gap-1.5 ${
-                    engineStatus.activeEngine === 'local_ml'
-                      ? 'bg-emerald-100 text-emerald-950 border-emerald-300'
-                      : 'bg-amber-100 text-amber-950 border-amber-300'
-                  }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      engineStatus.activeEngine === 'local_ml' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500 animate-ping'
+
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl font-bold tracking-tight text-zinc-950">
+                  AkiMed
+                </span>
+                
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200/80 text-[11px] font-semibold text-zinc-700">
+                  <span className="relative flex h-2 w-2">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                      engineStatus.activeEngine === 'local_ml' ? 'bg-emerald-400' : 'bg-amber-400'
+                    } opacity-75`}></span>
+                    <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                      engineStatus.activeEngine === 'local_ml' ? 'bg-emerald-500' : 'bg-amber-500'
                     }`}></span>
-                    {engineStatus.activeEngine === 'local_ml' ? 'MPS GPU Active (212.9M)' : 'Engine Initializing...'}
                   </span>
+                  <span>{engineStatus.activeEngine === 'local_ml' ? 'MPS GPU • 212.9M' : 'Engine Ready'}</span>
                 </div>
-                <p className="text-[11px] font-medium text-zinc-500 -mt-0.5">
-                  Clinical Akinator • 5-Tier ESI Triage • Fuzzy Typo AI
-                </p>
               </div>
             </div>
 
-            {/* Nav Tabs - Separated Akinator Game vs Direct Conclusion */}
-            <nav className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-              <button
-                onClick={() => setActiveTab('akinator')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === 'akinator'
-                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
-                }`}
-              >
-                <Brain className="w-3.5 h-3.5 text-teal-400" />
-                <span>Dr. Akinator Game</span>
-              </button>
+            {/* Unified Segmented Nav Tab Bar */}
+            <nav className="flex items-center gap-2">
+              <div className="flex items-center p-1 bg-zinc-200/60 rounded-xl border border-zinc-300/40">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('akinator')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'akinator'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/40'
+                  }`}
+                >
+                  <Brain className={`w-3.5 h-3.5 ${activeTab === 'akinator' ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                  <span>Dr. Akinator</span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('triage')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                  activeTab === 'triage'
-                    ? 'bg-zinc-900 text-white shadow-tactile-sm'
-                    : 'text-zinc-600 hover:text-zinc-950 hover:bg-zinc-200/60'
-                }`}
-              >
-                <Activity className="w-3.5 h-3.5 text-rose-500" />
-                <span>Direct Emergency Triage</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('triage')}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'triage'
+                      ? 'bg-white text-zinc-950 shadow-xs'
+                      : 'text-zinc-600 hover:text-zinc-950 hover:bg-white/40'
+                  }`}
+                >
+                  <Activity className={`w-3.5 h-3.5 ${activeTab === 'triage' ? 'text-rose-600' : 'text-zinc-400'}`} />
+                  <span>Emergency Triage</span>
+                </button>
+              </div>
 
-              {/* Nerdy AI Model Hub Pill Button */}
+              {/* Clean Telemetry Modal Trigger */}
               <button
+                type="button"
                 onClick={() => setShowTelemetryModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-2 border-zinc-900 bg-white hover:bg-zinc-900 hover:text-white text-zinc-900 text-xs font-extrabold shadow-tactile-sm transition-all ml-1 cursor-pointer"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 hover:text-zinc-950 text-xs font-semibold transition-all shadow-xs cursor-pointer"
                 title="Inspect 212.9M Attention Transformer Specs, MPS Kernel Telemetry, and Tensor Dimensions"
               >
-                <Cpu className="w-3.5 h-3.5 text-teal-600" />
-                <span>212.9M Neural Model Info</span>
+                <Cpu className="w-3.5 h-3.5 text-zinc-500" />
+                <span>212.9M Model Specs</span>
               </button>
             </nav>
           </div>

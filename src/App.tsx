@@ -343,65 +343,36 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Akademia-Style Hero Headline Section */}
-        <section className="relative pt-4 pb-2">
-          {/* Circular Stamp Graphic Badge (Akademia Reference Style) */}
-          <div className="absolute -top-3 right-2 sm:right-6 pointer-events-none select-none hidden md:block">
-            <div className="relative w-28 h-28 flex items-center justify-center">
-              <svg className="w-full h-full animate-spin-slow text-zinc-900" viewBox="0 0 100 100">
-                <path
-                  id="circlePath"
-                  d="M 50, 50 m -37, 0 a 37,37 0 1,1 74,0 a 37,37 0 1,1 -74,0"
-                  fill="transparent"
-                />
-                <text className="text-[7px] font-black uppercase tracking-widest fill-zinc-900">
-                  <textPath href="#circlePath">
-                    • AKIMED 16-LAYER TRANSFORMER • 212.9M PARAMETERS • APPLE MPS •
-                  </textPath>
-                </text>
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl">🩺</span>
-              </div>
-            </div>
-          </div>
-
+        {/* Clean Editorial Headline Section */}
+        <section className="relative pt-2 pb-1">
           <div className="max-w-3xl">
-            {/* Inline Capsule Headline (Akademia Reference Style) */}
-            <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tight leading-[1.15] mb-4">
-              Find{' '}
-              <span className="inline-flex items-center mx-1 px-3 py-0.5 rounded-full bg-emerald-300 text-zinc-950 text-xs sm:text-sm font-black border-2 border-zinc-900 align-middle shadow-tactile-sm">
-                212.9M AI
-              </span>{' '}
-              differential{' '}
-              <span className="highlighter-stroke">diagnoses</span> & triage{' '}
-              <span className="inline-flex items-center mx-1 px-2.5 py-0.5 rounded-full bg-yellow-300 text-zinc-950 text-xs sm:text-sm font-black border-2 border-zinc-900 align-middle shadow-tactile-sm">
-                ⚡ MPS GPU
-              </span>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-950 tracking-tight leading-[1.2] mb-3">
+              Clinical Differential Diagnoses & Emergency Triage Engine
             </h1>
 
-            <p className="text-sm sm:text-base text-zinc-600 font-medium leading-relaxed max-w-2xl">
-              An evidence-based diagnostic Akinator and 5-tier ESI emergency triage engine powered by a 16-Layer Pre-LN Clinical Attention Transformer (212.9M weights). Authentic 32-pass Monte Carlo attention ensembling executed natively on Apple Silicon Metal shaders.
+            <p className="text-sm sm:text-base text-zinc-600 font-normal leading-relaxed max-w-2xl">
+              An evidence-based diagnostic consultation system and 5-tier ESI triage platform powered by a 16-Layer Pre-LN Attention Transformer (212.9M parameters) running natively on Apple Silicon Metal shaders.
             </p>
 
-            {/* Quick Stats Pill Strip */}
-            <div className="flex flex-wrap items-center gap-2.5 mt-5">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border-2 border-zinc-900 text-xs font-bold text-zinc-800 shadow-tactile-sm">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>16-Layer Transformer (Pre-LN / 212.9M Params)</span>
+            {/* Quick Stats Strip */}
+            <div className="flex flex-wrap items-center gap-2 mt-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-white border border-zinc-200 text-xs font-medium text-zinc-700 shadow-xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>16-Layer Clinical Attention Transformer</span>
               </div>
 
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white border-2 border-zinc-900 text-xs font-bold text-zinc-800 shadow-tactile-sm">
-                <span>Top-3 Accuracy:</span>
-                <span className="text-emerald-600 font-black">99.82%</span>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white border border-zinc-200 text-xs font-medium text-zinc-700 shadow-xs">
+                <span className="text-zinc-500">Top-3 Precision:</span>
+                <span className="text-emerald-700 font-bold">99.82%</span>
               </div>
 
               <button
+                type="button"
                 onClick={() => setShowTelemetryModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-black shadow-tactile-sm transition-transform hover:-translate-y-0.5 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium shadow-xs transition-colors cursor-pointer"
               >
-                <Cpu className="w-3.5 h-3.5 text-teal-400" />
-                <span>212.9M Neural Architecture & MPS Kernel</span>
+                <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Model Specs & Telemetry</span>
               </button>
             </div>
           </div>

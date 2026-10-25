@@ -35,25 +35,6 @@ interface PatientFormProps {
   onSwitchMode?: (mode: 'akinator' | 'triage') => void;
 }
 
-const CLINICAL_SEARCH_EXAMPLES = [
-  {
-    label: '🌴 Kenya Malaria Case',
-    query: '29M presents with 4 days of cyclical spiking fevers every 48 hours, shaking rigors, severe frontal headache, diaphoresis, mild jaundice, dark urine. Returned 12 days ago from rural Kenya safari; did not take chemoprophylaxis. Temp 39.4, HR 118, BP 110/70. NKDA.'
-  },
-  {
-    label: '🫀 STEMI (Cardiology)',
-    query: '58yo male with acute crushing substernal chest pain radiatin to left arm and jaw for 2 hours, profuse diaphoresis, nausea, dyspnea. Hx of HTN and T2D. Vitals: BP 155/95, HR 105, SpO2 96%.'
-  },
-  {
-    label: '🧠 Acute Meningitis (Neurology)',
-    query: '21yo female college student presents with sudden severe headache, high fever, photophobia, and stiff neck for 24 hours. Unable to touch chin to chest. Vitals: Temp 39.8C, HR 122, BP 100/60. NKDA.'
-  },
-  {
-    label: '🫁 Pulmonary Embolism (PE)',
-    query: '45yo female with sudden SOB and pleuritic CP on deep inspiration for 6 hours. Hx of DVT on Warfarin. Vitals: HR 115, RR 24, SpO2 91% on room air.'
-  }
-];
-
 export const PatientForm: React.FC<PatientFormProps> = ({
   patient,
   setPatient,
@@ -99,14 +80,6 @@ export const PatientForm: React.FC<PatientFormProps> = ({
     });
   }, [parseResult, patient.chiefSymptoms, setPatient]);
 
-  const handleApplyExample = (exampleQuery: string) => {
-    const parsed = parseClinicalSearchQuery(exampleQuery);
-    setPatient((prev) => ({
-      ...applyParsedSearchToPatientProfile(prev, parsed),
-      chiefSymptoms: exampleQuery
-    }));
-  };
-
   const handleResetForm = () => {
     setPatient({
       age: 30,
@@ -144,33 +117,33 @@ export const PatientForm: React.FC<PatientFormProps> = ({
   return (
     <div className="bg-white border-2 border-zinc-900 rounded-3xl p-6 sm:p-8 shadow-tactile text-zinc-900 relative transition-all">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b-2 border-zinc-900/10 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 mb-6 border-b border-zinc-200/80 gap-3">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold shadow-tactile-sm border-2 border-zinc-900 ${
-            activeMode === 'akinator' ? 'bg-emerald-400 text-zinc-950' : 'bg-rose-500 text-white'
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-xs ${
+            activeMode === 'akinator' ? 'bg-zinc-950 text-emerald-400' : 'bg-rose-600 text-white'
           }`}>
             {activeMode === 'akinator' ? (
-              <Brain className="w-5 h-5 text-zinc-950" />
+              <Brain className="w-5 h-5 text-emerald-400" />
             ) : (
               <Activity className="w-5 h-5 text-white" />
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black text-zinc-900 tracking-tight font-serif">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
                 {activeMode === 'akinator'
                   ? 'Dr. Akinator Consultation & Patient Intake'
-                  : 'Direct Emergency Triage & Differential Intake'}
+                  : 'Emergency Triage & Differential Intake'}
               </h2>
-              <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
                 activeMode === 'akinator'
-                  ? 'bg-emerald-100 text-emerald-950 border-emerald-400'
-                  : 'bg-rose-100 text-rose-950 border-rose-300'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border-rose-200'
               }`}>
-                {activeMode === 'akinator' ? '🎮 20-Questions Engine' : '⚡ MPS GPU Triage'}
+                {activeMode === 'akinator' ? 'Interactive Inquiry' : 'Instant Protocol'}
               </span>
             </div>
-            <p className="text-xs text-zinc-500 font-medium">
+            <p className="text-xs text-zinc-500 font-normal mt-0.5">
               {activeMode === 'akinator'
                 ? 'Enter presenting symptoms, vitals, or clinical notes. Dr. Akinator will ask targeted questions to pinpoint the diagnosis.'
                 : 'Paste doctor notes, clinical vignettes, or symptoms for instant 5-tier ESI Triage and full MBBS SOAP Differential.'}
@@ -178,29 +151,17 @@ export const PatientForm: React.FC<PatientFormProps> = ({
           </div>
         </div>
 
-        {/* Quick Example Scenarios & Reset */}
-        <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto">
+        {/* Clean Reset Action */}
+        <div className="flex items-center self-start sm:self-auto">
           <button
             type="button"
             onClick={handleResetForm}
-            className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 transition-colors cursor-pointer flex items-center gap-1 mr-1"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 border border-zinc-200 transition-all cursor-pointer flex items-center gap-1.5"
+            title="Clear all fields and reset encounter"
           >
-            <RotateCcw className="w-3 h-3 text-rose-600" />
-            <span>Reset / New Case</span>
+            <RotateCcw className="w-3.5 h-3.5 text-zinc-500" />
+            <span>New Case / Clear</span>
           </button>
-          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider hidden md:inline">
-            Quick Cases:
-          </span>
-          {CLINICAL_SEARCH_EXAMPLES.map((ex, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => handleApplyExample(ex.query)}
-              className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-zinc-100 hover:bg-yellow-200 text-zinc-800 border border-zinc-300 transition-colors cursor-pointer"
-            >
-              {ex.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -495,17 +456,17 @@ export const PatientForm: React.FC<PatientFormProps> = ({
                 type="button"
                 disabled={isLoading || !patient.chiefSymptoms?.trim()}
                 onClick={handleLaunchAkinator}
-                className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-zinc-950 font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
               >
                 <Brain className="w-5 h-5 text-zinc-950" />
-                <span>Launch "Dr. Akinator" (20-Questions Dynamic Engine)</span>
+                <span>Begin Dr. Akinator Diagnostic Inquiry</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => onSwitchMode ? onSwitchMode('triage') : handleLaunchTriage()}
-                className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                title="Switch directly to instant triage without 20 questions"
+                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                title="Switch directly to emergency triage"
               >
                 <Activity className="w-4 h-4 text-rose-600" />
                 <span>Instant Triage View</span>
@@ -518,22 +479,21 @@ export const PatientForm: React.FC<PatientFormProps> = ({
                 type="button"
                 disabled={isLoading || !patient.chiefSymptoms?.trim()}
                 onClick={handleLaunchTriage}
-                className="w-full sm:flex-1 py-4 px-6 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+                className="w-full sm:flex-1 py-3.5 px-6 rounded-2xl bg-rose-500 hover:bg-rose-400 text-white font-black text-sm border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
               >
                 <Activity className="w-5 h-5 text-white" />
-                <span>Compute Direct Emergency Triage & Differential (MPS GPU)</span>
+                <span>Compute Emergency Triage & Differential (MPS GPU)</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 type="button"
                 onClick={() => onSwitchMode ? onSwitchMode('akinator') : handleLaunchAkinator()}
-                className="w-full sm:w-auto py-4 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                title="Switch to 20-questions Akinator dynamic game"
+                className="w-full sm:w-auto py-3.5 px-5 rounded-2xl bg-white hover:bg-zinc-100 text-zinc-900 font-bold text-xs border-2 border-zinc-900 shadow-tactile hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                title="Switch to Dr. Akinator inquiry mode"
               >
                 <Brain className="w-4 h-4 text-emerald-600" />
-                <span>Play Akinator Game</span>
-                <Sparkles className="w-3.5 h-3.5" />
+                <span>Switch to Dr. Akinator Inquiry</span>
               </button>
             </div>
           )}
